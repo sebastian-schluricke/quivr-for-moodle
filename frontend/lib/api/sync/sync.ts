@@ -145,7 +145,7 @@ export const getSyncFiles = async (
         id: String(course.id),
         name: course.displayname || course.fullname || course.shortname,
         is_folder: true,
-        icon: "folder",
+        // Don't set icon - let the component use the default folder icon
       }));
 
       return { files };
@@ -165,7 +165,7 @@ export const getSyncFiles = async (
           id: `section_${section.id}`,
           name: section.name || `Section ${section.section_number}`,
           is_folder: true,
-          icon: "folder",
+          // Don't set icon - let the component use the default folder icon
         });
 
         // Add modules/files within the section
@@ -176,7 +176,7 @@ export const getSyncFiles = async (
               id: `file_${section.id}_${module.id}_${file.filename}`,
               name: `${module.name} - ${file.filename}`,
               is_folder: false,
-              icon: file.mimetype?.includes("pdf") ? "pdf" : "file",
+              // Don't set icon - let the component use the default file icon
             });
           }
 
@@ -186,7 +186,7 @@ export const getSyncFiles = async (
               id: `module_${section.id}_${module.id}`,
               name: `${module.name} (${module.type})`,
               is_folder: false,
-              icon: "link",
+              // Don't set icon - let the component use the default file icon
             });
           }
         }
