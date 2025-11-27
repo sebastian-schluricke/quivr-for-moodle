@@ -5,7 +5,7 @@ from uuid import UUID
 
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, SkipValidation
 from typing_extensions import TypedDict
 
 
@@ -35,7 +35,7 @@ class ChatMessage(BaseModel):
     chat_id: UUID
     message_id: UUID
     brain_id: UUID | None
-    msg: AIMessage | HumanMessage
+    msg: SkipValidation[AIMessage | HumanMessage]
     message_time: datetime
     metadata: dict[str, Any]
 

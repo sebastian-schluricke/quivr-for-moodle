@@ -22,26 +22,39 @@ logger = logging.getLogger("quivr_core")
 
 
 def model_supports_function_calling(model_name: str):
+    """
+    Check if a model supports function calling (tool use).
+
+    Uses prefix matching to handle model versions with date suffixes
+    (e.g., 'gpt-4o-mini-2024-07-18' matches 'gpt-4o-mini').
+    """
+    # Model prefixes that support function calling
+    # Order matters: more specific prefixes should come before less specific ones
     models_supporting_function_calls = [
-        "gpt-4",
+        # GPT-4o series
+        "gpt-4o-mini",
+        "gpt-4o",
+        # GPT-4 turbo and preview series
+        "gpt-4-turbo",
         "gpt-4-1106-preview",
+        "gpt-4-0125-preview",
         "gpt-4-0613",
+        "gpt-4",
+        # GPT-3.5 turbo series
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo-1106",
         "gpt-3.5-turbo-0613",
-        "gpt-4-0125-preview",
         "gpt-3.5-turbo",
-        "gpt-4-turbo",
-        "gpt-4o",
-        "gpt-4o-mini",
         # GPT-4.1 series (2025)
-        "gpt-4.1",
         "gpt-4.1-mini",
         "gpt-4.1-nano",
+        "gpt-4.1",
         # GPT-5 chat models (2025)
-        "gpt-5-chat-latest",
+        "gpt-5-chat",
+        "gpt-5",
     ]
-    return model_name in models_supporting_function_calls
+    # Use prefix matching to handle versioned model names
+    return any(model_name.startswith(prefix) for prefix in models_supporting_function_calls)
 
 
 def format_history_to_openai_mesages(
@@ -66,6 +79,7 @@ def get_chunk_metadata(
 ) -> RAGResponseMetadata:
     # Initiate the source
     metadata = {"sources": sources} if sources else {"sources": []}
+    logger.info(f"🔍 get_chunk_metadata: msg.tool_calls={msg.tool_calls}, has_tool_calls={bool(msg.tool_calls)}")
     if msg.tool_calls:
         cited_answer = next(x for x in msg.tool_calls if cited_answer_filter(x))
 

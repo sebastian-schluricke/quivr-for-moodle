@@ -568,6 +568,7 @@ class QuivrQARAGLangGraph:
         # Last chunk provides metadata
         total_time = time.time() - start_time
         logger.info(f"⏱️ TIMING: Stream completed. Total time: {total_time:.2f}s, chunks: {chunk_id}")
+        logger.info(f"🔍 DEBUG: supports_func_calling={self.llm_endpoint.supports_func_calling()}, rolling_message.tool_calls={rolling_message.tool_calls}")
         logger.info(f"⏱️ TIMING SUMMARY: build_chain=0.00s, first_event={(first_event_time - start_time) if first_event_time else 'N/A'}s, first_chunk={(first_chunk_time - start_time) if first_chunk_time else 'N/A'}s, total={total_time:.2f}s")
 
         last_chunk = ParsedRAGChunkResponse(
