@@ -22,6 +22,7 @@ from quivr_api.modules.sync.utils.sync import (
     DropboxSync,
     GitHubSync,
     GoogleDriveSync,
+    MoodleSync,
     NotionSync,
 )
 from quivr_api.modules.sync.utils.syncutils import SyncUtils
@@ -69,7 +70,8 @@ async def build_syncs_utils(
                 (
                     "notion",
                     NotionSync(notion_service=notion_service),
-                ),  # Fixed duplicate "github" key
+                ),
+                ("moodle", MoodleSync()),
             ]:
                 provider_sync_util = SyncUtils(
                     sync_user_service=deps.sync_user_service,
