@@ -97,6 +97,20 @@ class SyncUtils:
         self.notification_service = notification_service
         self.brain_vectors = brain_vectors
 
+    def _prepare_credentials(self, current_user: SyncsUser) -> dict[str, Any]:
+        """
+        Prepare credentials for sync operations.
+        For Moodle, merge additional_data into credentials.
+        """
+        credentials = current_user.credentials.copy() if isinstance(current_user.credentials, dict) else {}
+
+        # For Moodle, merge additional_data (contains moodle_url and user_id)
+        if self.sync_cloud.lower_name == "moodle" and current_user.additional_data:
+            if isinstance(current_user.additional_data, dict):
+                credentials.update(current_user.additional_data)
+
+        return credentials
+
     # TODO: This modifies the file, we should treat it as such
     def create_sync_bulk_notification(
         self, files: list[SyncFile], current_user: UUID, brain_id: UUID, bulk_id: UUID
@@ -119,9 +133,10 @@ class SyncUtils:
         return res
 
     async def download_file(
-        self, file: SyncFile, credentials: dict[str, Any]
+        self, file: SyncFile, current_user: SyncsUser
     ) -> DownloadedSyncFile:
         logger.info(f"Downloading {file} using {self.sync_cloud}")
+        credentials = self._prepare_credentials(current_user)
         file_response = await self.sync_cloud.adownload_file(credentials, file)
         logger.debug(f"Fetch sync file response: {file_response}")
         file_name = str(file_response["file_name"])
@@ -153,7 +168,7 @@ class SyncUtils:
         logger.info("Processing file: %s", file.name)
         brain_id = sync_active.brain_id
         source, source_link = self.sync_cloud.name, file.web_view_link
-        downloaded_file = await self.download_file(file, current_user.credentials)
+        downloaded_file = await self.download_file(file, current_user)
         storage_path = f"{brain_id}/{downloaded_file.file_name}"
         exists_in_storage = check_file_exists(str(brain_id), file.name)
 
@@ -225,9 +240,10 @@ class SyncUtils:
         sync_active: SyncsActive,
     ):
         logger.info(f"Processing {len(files)} for sync_active: {sync_active.id}")
-        current_user.credentials = self.sync_cloud.check_and_refresh_access_token(
-            current_user.credentials
-        )
+        credentials = self._prepare_credentials(current_user)
+        updated_credentials = self.sync_cloud.check_and_refresh_access_token(credentials)
+        current_user.credentials = {k: v for k, v in updated_credentials.items()
+                                    if k in (current_user.credentials or {})}
 
         bulk_id = uuid4()
         downloaded_files = []
@@ -290,8 +306,11 @@ class SyncUtils:
         folders = sync_active.settings.get("folders", [])
         files_ids = sync_active.settings.get("files", [])
 
+        # Prepare credentials (for Moodle, this merges additional_data)
+        credentials = self._prepare_credentials(user_sync)
+
         files = await self.get_syncfiles_from_ids(
-            user_sync.credentials,
+            credentials,
             files_ids=files_ids,
             folder_ids=folders,
             sync_user_id=user_sync.id,
@@ -358,8 +377,11 @@ class SyncUtils:
         files_ids: list[str],
         folder_ids: list[str],
     ):
+        # Prepare credentials (for Moodle, this merges additional_data)
+        credentials = self._prepare_credentials(user_sync)
+
         files = await self.get_syncfiles_from_ids(
-            user_sync.credentials, files_ids, folder_ids, user_sync.id
+            credentials, files_ids, folder_ids, user_sync.id
         )
         processed_files = await self.process_sync_files(
             files=files,

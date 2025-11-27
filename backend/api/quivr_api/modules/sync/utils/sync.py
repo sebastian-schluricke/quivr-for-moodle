@@ -1218,3 +1218,299 @@ class GitHubSync(BaseSync):
 
         logger.info(f"GitHub repository files retrieved successfully: {len(files)}")
         return files
+
+
+class MoodleSync(BaseSync):
+    """
+    Moodle integration using Web Services API with wstoken authentication.
+    """
+    name = "Moodle"
+    lower_name = "moodle"
+    datetime_format: str = "%Y-%m-%dT%H:%M:%SZ"
+
+    def check_and_refresh_access_token(self, credentials: dict) -> Dict:
+        """
+        Moodle wstokens don't expire, so just validate and return credentials.
+        """
+        wstoken = credentials.get("wstoken")
+        if not wstoken:
+            raise HTTPException(status_code=401, detail="Missing wstoken in credentials")
+        return credentials
+
+    def _get_moodle_url(self, credentials: dict) -> str:
+        """Extract Moodle URL from credentials."""
+        # Moodle URL should be stored in additional_data, but we need to access it
+        # For now, we'll pass it through credentials or get it from the sync
+        moodle_url = credentials.get("moodle_url")
+        if not moodle_url:
+            raise HTTPException(status_code=500, detail="Moodle URL not found in credentials")
+        return moodle_url.rstrip("/")
+
+    def _call_moodle_api(self, moodle_url: str, wstoken: str, wsfunction: str, params: dict = None) -> Any:
+        """
+        Generic Moodle Web Services API call.
+        """
+        endpoint = f"{moodle_url}/webservice/rest/server.php"
+        api_params = {
+            "wstoken": wstoken,
+            "wsfunction": wsfunction,
+            "moodlewsrestformat": "json",
+        }
+        if params:
+            api_params.update(params)
+
+        response = requests.get(endpoint, params=api_params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+
+        # Check for Moodle API errors
+        if isinstance(data, dict) and "exception" in data:
+            error_msg = data.get("message", "Unknown Moodle API error")
+            logger.error(f"Moodle API error: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Moodle API error: {error_msg}")
+
+        return data
+
+    def get_files_by_id(self, credentials: Dict, file_ids: List[str]) -> List[SyncFile]:
+        """
+        Get specific files by their IDs.
+        file_ids format: "course_id:section_id:module_id"
+        """
+        self.check_and_refresh_access_token(credentials)
+        moodle_url = self._get_moodle_url(credentials)
+        wstoken = credentials["wstoken"]
+
+        files = []
+        for file_id in file_ids:
+            try:
+                # Parse file_id: "course_id:section_id:module_id"
+                parts = file_id.split(":")
+                if len(parts) != 3:
+                    logger.warning(f"Invalid file_id format: {file_id}")
+                    continue
+
+                course_id, section_id, module_id = parts
+
+                # Get course contents
+                contents = self._call_moodle_api(
+                    moodle_url, wstoken, "core_course_get_contents",
+                    {"courseid": int(course_id)}
+                )
+
+                # Find the specific module
+                for section in contents:
+                    if str(section.get("id")) == section_id:
+                        for module in section.get("modules", []):
+                            if str(module.get("id")) == module_id:
+                                # Extract files from this module
+                                module_files = self._extract_files_from_module(
+                                    module, section.get("name", ""), course_id
+                                )
+                                files.extend(module_files)
+                                break
+
+            except Exception as e:
+                logger.error(f"Error fetching Moodle file {file_id}: {e}")
+                continue
+
+        return files
+
+    async def aget_files_by_id(self, credentials: Dict, file_ids: List[str]) -> List[SyncFile]:
+        """Async version of get_files_by_id."""
+        return await asyncio.to_thread(self.get_files_by_id, credentials, file_ids)
+
+    def _extract_files_from_module(self, module: dict, section_name: str, course_id: str) -> List[SyncFile]:
+        """Extract SyncFile objects from a Moodle module."""
+        files = []
+        module_id = str(module.get("id", ""))
+        module_name = module.get("name", "Unnamed Module")
+        module_type = module.get("modname", "")
+
+        # Check if module has downloadable content
+        if "contents" in module:
+            for content in module.get("contents", []):
+                if content.get("type") == "file":
+                    file_url = content.get("fileurl", "")
+                    filename = content.get("filename", module_name)
+
+                    sync_file = SyncFile(
+                        name=remove_special_characters(filename),
+                        id=f"{course_id}:{section_name}:{module_id}:{filename}",
+                        is_folder=False,
+                        last_modified=datetime.fromtimestamp(
+                            content.get("timemodified", 0)
+                        ).strftime(self.datetime_format),
+                        mime_type=content.get("mimetype", ""),
+                        web_view_link=file_url,
+                        size=content.get("filesize", 0),
+                    )
+                    files.append(sync_file)
+
+        return files
+
+    def get_files(
+        self, credentials: Dict, folder_id: str | None = None, recursive: bool = False
+    ) -> List[SyncFile]:
+        """
+        Get all files from a Moodle course.
+        folder_id is the course_id.
+        """
+        self.check_and_refresh_access_token(credentials)
+        moodle_url = self._get_moodle_url(credentials)
+        wstoken = credentials["wstoken"]
+
+        if not folder_id:
+            # Get all enrolled courses
+            user_id = credentials.get("user_id")
+            courses = self._call_moodle_api(
+                moodle_url, wstoken, "core_enrol_get_users_courses",
+                {"userid": user_id}
+            )
+
+            # Return courses as "folders"
+            course_folders = []
+            for course in courses:
+                course_folders.append(SyncFile(
+                    name=remove_special_characters(course.get("fullname", "Unnamed Course")),
+                    id=str(course.get("id")),
+                    is_folder=True,
+                    last_modified=datetime.fromtimestamp(
+                        course.get("timemodified", 0)
+                    ).strftime(self.datetime_format),
+                    mime_type="folder",
+                    web_view_link=f"{moodle_url}/course/view.php?id={course.get('id')}",
+                    size=0,
+                ))
+            return course_folders
+
+        # Get course contents
+        course_id = folder_id
+        contents = self._call_moodle_api(
+            moodle_url, wstoken, "core_course_get_contents",
+            {"courseid": int(course_id)}
+        )
+
+        # Check if hidden sections should be included (default: False)
+        include_hidden_sections = credentials.get("include_hidden_sections", False)
+
+        files = []
+        for section in contents:
+            section_id = section.get("id")
+            section_name = section.get("name", "Unnamed Section")
+            section_number = section.get("section", 0)
+            section_visible = section.get("visible", 1)  # Default to visible if not specified
+
+            # Skip hidden sections unless explicitly configured to include them
+            if not section_visible and not include_hidden_sections:
+                logger.debug(f"Skipping hidden section: {section_name} (id={section_id})")
+                continue
+
+            # Add section itself as a .md file
+            section_file = SyncFile(
+                name=remove_special_characters(f"Section {section_number}: {section_name}.md"),
+                id=f"{course_id}:section:{section_id}",
+                is_folder=False,
+                last_modified=datetime.now().strftime(self.datetime_format),
+                mime_type="text/markdown",
+                web_view_link=f"{moodle_url}/course/view.php?id={course_id}#section-{section_number}",
+                size=0,
+            )
+            files.append(section_file)
+
+            # Also add files from modules in this section
+            for module in section.get("modules", []):
+                module_files = self._extract_files_from_module(module, section_name, course_id)
+                files.extend(module_files)
+
+        logger.info(f"Retrieved {len(files)} files from Moodle course {course_id}")
+        return files
+
+    async def aget_files(
+        self,
+        credentials: Dict,
+        folder_id: str | None = None,
+        recursive: bool = False,
+        sync_user_id: int | None = None,
+    ) -> List[SyncFile]:
+        """Async version of get_files."""
+        return await asyncio.to_thread(self.get_files, credentials, folder_id, recursive)
+
+    def download_file(
+        self, credentials: Dict, file: SyncFile
+    ) -> Dict[str, Union[str, BytesIO]]:
+        """
+        Download a file from Moodle or generate markdown for sections.
+        """
+        self.check_and_refresh_access_token(credentials)
+        wstoken = credentials["wstoken"]
+        moodle_url = self._get_moodle_url(credentials)
+
+        # Check if it's a section markdown file
+        if file.mime_type == "text/markdown" and ":section:" in file.id:
+            # Generate markdown content for this section
+            parts = file.id.split(":")
+            if len(parts) >= 3 and parts[1] == "section":
+                course_id = parts[0]
+                section_id = int(parts[2])
+
+                logger.info(f"Generating markdown for section {section_id} in course {course_id}")
+
+                # Get course contents
+                contents = self._call_moodle_api(
+                    moodle_url, wstoken, "core_course_get_contents",
+                    {"courseid": int(course_id)}
+                )
+
+                # Find the specific section
+                for section in contents:
+                    if section.get("id") == section_id:
+                        # Use the SyncMoodleService to process the section
+                        from quivr_api.modules.sync.service.sync_moodle import SyncMoodleService
+                        service = SyncMoodleService()
+                        section_data = service.process_section_content(section, f"Course {course_id}")
+
+                        # Create markdown content
+                        markdown_content = []
+                        markdown_content.append(f"**Course Section**: {file.web_view_link}\n\n")
+                        markdown_content.append(section_data["content"])
+                        markdown_content.append(f"\n\n---\n\n")
+                        markdown_content.append(f"**Files in this section**: {section_data['file_count']}\n")
+                        markdown_content.append(f"**Modules**: {len(section_data['modules'])}\n")
+
+                        full_markdown = "\n".join(markdown_content)
+                        content_bytes = full_markdown.encode("utf-8")
+                        file_data = BytesIO(content_bytes)
+
+                        logger.info(f"Generated markdown for section: {file.name} ({len(content_bytes)} bytes)")
+
+                        return {
+                            "file_name": file.name,
+                            "content": file_data,
+                        }
+
+                logger.error(f"Section {section_id} not found in course {course_id}")
+                return {"file_name": file.name, "content": BytesIO(b"")}
+
+        # For regular files, download from URL
+        file_url = file.web_view_link
+        if "?" in file_url:
+            file_url += f"&token={wstoken}"
+        else:
+            file_url += f"?token={wstoken}"
+
+        logger.info(f"Downloading Moodle file: {file.name} from {file_url}")
+
+        response = requests.get(file_url, timeout=30)
+        response.raise_for_status()
+
+        file_data = BytesIO(response.content)
+        return {
+            "file_name": file.name,
+            "content": file_data,
+        }
+
+    async def adownload_file(
+        self, credentials: Dict, file: SyncFile
+    ) -> Dict[str, Union[str, BytesIO]]:
+        """Async version of download_file."""
+        return await asyncio.to_thread(self.download_file, credentials, file)
