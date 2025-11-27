@@ -288,9 +288,11 @@ class QuivrQARAGLangGraph:
         # LLM
         llm = self.llm_endpoint._llm
         if self.llm_endpoint.supports_func_calling():
+            # Use "required" for OpenAI models (forces tool use)
+            # Note: "any" is Anthropic-specific and doesn't work with OpenAI
             llm = self.llm_endpoint._llm.bind_tools(
                 [cited_answer],
-                tool_choice="any",
+                tool_choice="required",
             )
 
         # Chain
