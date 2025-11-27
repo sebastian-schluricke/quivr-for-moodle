@@ -123,16 +123,17 @@ export const ConnectionSection = ({
     }
   };
 
-  const handleGetSyncFiles = async (userSyncId: number) => {
+  const handleGetSyncFiles = async (userSyncId: number, syncProvider: Provider) => {
     try {
       setLoadingFirstList(true);
-      const res = await getSyncFiles(userSyncId);
+      const res = await getSyncFiles(userSyncId, undefined, syncProvider);
       setLoadingFirstList(false);
       setCurrentSyncElements(res);
       setCurrentSyncId(userSyncId);
       handleOpenedConnections(userSyncId);
     } catch (error) {
       console.error("Failed to get sync files:", error);
+      setLoadingFirstList(false);
     }
   };
 
@@ -305,8 +306,8 @@ export const ConnectionSection = ({
                   openedConnection.submitted
               )}
               onClick={() => {
-                void handleGetSyncFiles(connection.id);
                 setCurrentProvider(connection.provider);
+                void handleGetSyncFiles(connection.id, connection.provider);
               }}
               sync={connection}
             />

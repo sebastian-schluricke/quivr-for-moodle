@@ -48,13 +48,14 @@ export const FromConnections = (): JSX.Element => {
       setLoading(true);
       let res;
       if (folderId !== null) {
-        res = await getSyncFiles(userSyncId, folderId);
+        res = await getSyncFiles(userSyncId, folderId, currentProvider);
       } else {
-        res = await getSyncFiles(userSyncId);
+        res = await getSyncFiles(userSyncId, undefined, currentProvider);
       }
       setCurrentSyncElements(res);
     } catch (error) {
       console.error("Failed to get sync files:", error);
+      setLoading(false);
     }
   };
 

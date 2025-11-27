@@ -4,10 +4,59 @@ import { UUID } from "crypto";
 import {
   ActiveSync,
   OpenedConnection,
+  Provider,
   Sync,
   SyncElement,
   SyncElements,
 } from "./types";
+
+// Moodle course response types
+interface MoodleCourse {
+  id: number;
+  fullname: string;
+  shortname: string;
+  displayname?: string;
+}
+
+interface MoodleCoursesResponse {
+  courses: MoodleCourse[];
+  moodle_url: string;
+  sync_id: number;
+}
+
+// Moodle section/files response types
+interface MoodleFile {
+  filename: string;
+  fileurl: string;
+  filesize: number;
+  mimetype: string;
+}
+
+interface MoodleModule {
+  id: number;
+  name: string;
+  type: string;
+  url: string;
+  description: string;
+  files: MoodleFile[];
+  visible: number;
+}
+
+interface MoodleSection {
+  id: number;
+  name: string;
+  summary: string;
+  section_number: number;
+  visible: number;
+  modules: MoodleModule[];
+}
+
+interface MoodleCourseFilesResponse {
+  course_id: number;
+  sections: MoodleSection[];
+  total_sections: number;
+  total_files: number;
+}
 
 const createFilesSettings = (files: SyncElement[]) =>
   files.filter((file) => !file.is_folder).map((file) => file.id);
@@ -79,8 +128,75 @@ export const getUserSyncs = async (
 export const getSyncFiles = async (
   axiosInstance: AxiosInstance,
   userSyncId: number,
-  folderId?: string
+  folderId?: string,
+  provider?: Provider
 ): Promise<SyncElements> => {
+  // For Moodle, use special endpoints and transform the response
+  if (provider === "Moodle") {
+    if (!folderId) {
+      // Initial call - get courses as folders
+      const response = await axiosInstance.get<MoodleCoursesResponse>(
+        `/sync/moodle/courses`
+      );
+
+      // Transform Moodle courses to SyncElements format
+      const courses = response.data.courses || [];
+      const files: SyncElement[] = courses.map((course) => ({
+        id: String(course.id),
+        name: course.displayname || course.fullname || course.shortname,
+        is_folder: true,
+        icon: "folder",
+      }));
+
+      return { files };
+    } else {
+      // Subsequent call - get course contents (folderId is the course_id)
+      const response = await axiosInstance.get<MoodleCourseFilesResponse>(
+        `/sync/moodle/${userSyncId}/files?course_id=${folderId}`
+      );
+
+      // Transform Moodle sections/modules to SyncElements format
+      const sections = response.data.sections || [];
+      const files: SyncElement[] = [];
+
+      for (const section of sections) {
+        // Add section as a folder
+        files.push({
+          id: `section_${section.id}`,
+          name: section.name || `Section ${section.section_number}`,
+          is_folder: true,
+          icon: "folder",
+        });
+
+        // Add modules/files within the section
+        for (const module of section.modules || []) {
+          // Add module files
+          for (const file of module.files || []) {
+            files.push({
+              id: `file_${section.id}_${module.id}_${file.filename}`,
+              name: `${module.name} - ${file.filename}`,
+              is_folder: false,
+              icon: file.mimetype?.includes("pdf") ? "pdf" : "file",
+            });
+          }
+
+          // If module has URL but no files, add as a link item
+          if ((module.files?.length === 0 || !module.files) && module.url) {
+            files.push({
+              id: `module_${section.id}_${module.id}`,
+              name: `${module.name} (${module.type})`,
+              is_folder: false,
+              icon: "link",
+            });
+          }
+        }
+      }
+
+      return { files };
+    }
+  }
+
+  // Default behavior for other providers
   const url = folderId
     ? `/sync/${userSyncId}/files?user_sync_id=${userSyncId}&folder_id=${folderId}`
     : `/sync/${userSyncId}/files?user_sync_id=${userSyncId}`;

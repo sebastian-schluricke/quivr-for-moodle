@@ -16,7 +16,7 @@ import {
   syncSharepoint,
   updateActiveSync,
 } from "./sync";
-import { Integration, OpenedConnection, Provider } from "./types";
+import { Integration, OpenedConnection, Provider, SyncElements } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const useSync = () => {
@@ -64,8 +64,8 @@ export const useSync = () => {
     syncNotion: async (name: string) => syncNotion(name, axiosInstance),
     syncMoodle: async (name: string) => syncMoodle(name, axiosInstance),
     getUserSyncs: async () => getUserSyncs(axiosInstance),
-    getSyncFiles: async (userSyncId: number, folderId?: string) =>
-      getSyncFiles(axiosInstance, userSyncId, folderId),
+    getSyncFiles: async (userSyncId: number, folderId?: string, provider?: Provider): Promise<SyncElements> =>
+      getSyncFiles(axiosInstance, userSyncId, folderId, provider),
     integrationIconUrls,
     providerIconUrls,
     syncFiles: async (openedConnection: OpenedConnection, brainId: UUID) =>
