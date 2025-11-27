@@ -11,6 +11,7 @@ import {
   syncDropbox,
   syncFiles,
   syncGoogleDrive,
+  syncMoodle,
   syncNotion,
   syncSharepoint,
   updateActiveSync,
@@ -32,6 +33,8 @@ export const useSync = () => {
       "https://quivr-cms.s3.eu-west-3.amazonaws.com/Notion_app_logo_004168672c.png",
     GitHub:
       "https://quivr-cms.s3.eu-west-3.amazonaws.com/dropbox_dce4f3d753.png",
+    Moodle:
+      "https://upload.wikimedia.org/wikipedia/commons/c/c6/Moodle-logo.svg",
   };
 
   const integrationIconUrls: Record<Integration, string> = {
@@ -59,6 +62,7 @@ export const useSync = () => {
     syncSharepoint: async (name: string) => syncSharepoint(name, axiosInstance),
     syncDropbox: async (name: string) => syncDropbox(name, axiosInstance),
     syncNotion: async (name: string) => syncNotion(name, axiosInstance),
+    syncMoodle: async (name: string) => syncMoodle(name, axiosInstance),
     getUserSyncs: async () => getUserSyncs(axiosInstance),
     getSyncFiles: async (userSyncId: number, folderId?: string) =>
       getSyncFiles(axiosInstance, userSyncId, folderId),

@@ -1,4 +1,4 @@
-export type Provider = "Google" | "Azure" | "DropBox" | "Notion" | "GitHub";
+export type Provider = "Google" | "Azure" | "DropBox" | "Notion" | "GitHub" | "Moodle";
 
 export type Integration =
   | "Google Drive"
