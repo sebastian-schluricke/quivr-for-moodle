@@ -137,12 +137,98 @@ export const ConnectionSection = ({
   };
 
   const connect = async () => {
-    const res = await callback(
-      Math.random().toString(36).substring(2, 15) +
-        Math.random().toString(36).substring(2, 15)
-    );
+    // Generate a better default connection name
+    const timestamp = new Date().toLocaleString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const defaultName = provider === "Moodle"
+      ? `Moodle Verbindung ${timestamp}`
+      : `${provider} Connection ${timestamp}`;
+
+    const res = await callback(defaultName);
     if (res.authorization_url) {
-      window.open(res.authorization_url, "_blank");
+      // Set up message listener for auth token requests from popup
+      const messageHandler = (event: MessageEvent) => {
+        console.log('[Parent] Received message:', event.origin, event.data);
+
+        // Only accept messages from localhost
+        if (!event.origin.startsWith('http://localhost:')) {
+          console.log('[Parent] Rejected non-localhost message');
+          return;
+        }
+
+        if (event.data.type === 'AUTH_TOKEN_REQUEST') {
+          console.log('[Parent] Received AUTH_TOKEN_REQUEST, getting token');
+
+          let token = '';
+
+          try {
+            // Try localStorage first
+            const supabaseSession = localStorage.getItem('supabase-auth-token');
+            console.log('[Parent] localStorage key exists:', !!supabaseSession);
+
+            if (supabaseSession) {
+              const session = JSON.parse(supabaseSession);
+              token = session?.access_token || '';
+            }
+
+            // If not in localStorage, try cookies
+            if (!token) {
+              console.log('[Parent] Trying to get token from cookies');
+              const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('supabase-auth-token='));
+
+              if (cookieValue) {
+                const encodedValue = cookieValue.split('=')[1];
+                const decodedValue = decodeURIComponent(encodedValue);
+                console.log('[Parent] Found cookie, decoded value:', decodedValue.substring(0, 50));
+
+                // Cookie format: ["access_token", "refresh_token", null, null, null]
+                const tokenArray = JSON.parse(decodedValue);
+                token = tokenArray[0] || '';
+              }
+            }
+
+            console.log('[Parent] Sending token back to popup, token length:', token.length);
+
+            // Send token back to popup
+            event.source?.postMessage(
+              { type: 'AUTH_TOKEN_RESPONSE', token },
+              event.origin as any
+            );
+          } catch (e) {
+            console.error('[Parent] Error getting auth token:', e);
+            // Send empty token on error
+            event.source?.postMessage(
+              { type: 'AUTH_TOKEN_RESPONSE', token: '' },
+              event.origin as any
+            );
+          }
+        }
+      };
+
+      window.addEventListener('message', messageHandler);
+
+      // Open as a centered popup window
+      const width = 600;
+      const height = 700;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+      const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+      const popup = window.open(res.authorization_url, "moodle-connect", features);
+
+      // Clean up listener when popup closes
+      const checkPopupClosed = setInterval(() => {
+        if (popup?.closed) {
+          window.removeEventListener('message', messageHandler);
+          clearInterval(checkPopupClosed);
+        }
+      }, 1000);
     }
   };
 
@@ -156,7 +242,7 @@ export const ConnectionSection = ({
         .map((connection, index) => (
           <ConnectionLine
             key={index}
-            label={connection.email}
+            label={provider === "Moodle" ? connection.name : connection.email}
             index={index}
             id={connection.id}
             warnUserOnDelete={provider === "Notion"}
@@ -165,13 +251,16 @@ export const ConnectionSection = ({
     } else {
       return (
         <div className={styles.folded}>
-          {connections.map((connection, index) => (
-            <ConnectionIcon
-              key={index}
-              letter={connection.email[0]}
-              index={index}
-            />
-          ))}
+          {connections.map((connection, index) => {
+            const displayLabel = provider === "Moodle" ? connection.name : connection.email;
+            return (
+              <ConnectionIcon
+                key={index}
+                letter={displayLabel[0] || "?"}
+                index={index}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -208,7 +297,7 @@ export const ConnectionSection = ({
           {activeConnections.map((connection, index) => (
             <ConnectionButton
               key={index}
-              label={connection.email}
+              label={connection.provider === "Moodle" ? connection.name : connection.email}
               index={index}
               submitted={openedConnections.some(
                 (openedConnection) =>

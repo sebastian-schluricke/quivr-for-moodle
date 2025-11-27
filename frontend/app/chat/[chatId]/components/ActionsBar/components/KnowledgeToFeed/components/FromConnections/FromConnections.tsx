@@ -115,7 +115,7 @@ export const FromConnections = (): JSX.Element => {
                   >
                     <FolderLine
                       name={folder.name ?? ""}
-                      selectable={!!isPremium || currentProvider === "Notion"}
+                      selectable={true}
                       id={folder.id}
                       icon={folder.icon}
                       isAlsoFile={
