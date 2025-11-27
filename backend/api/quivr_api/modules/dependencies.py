@@ -3,7 +3,8 @@ from typing import AsyncGenerator, Callable, Generator, Generic, Optional, Type,
 from urllib.parse import urlparse
 
 from fastapi import Depends
-from langchain.embeddings.base import Embeddings
+# LangChain 1.x: Embeddings moved to langchain_core
+from langchain_core.embeddings import Embeddings
 from langchain_community.embeddings.ollama import OllamaEmbeddings
 
 # from langchain_community.vectorstores.supabase import SupabaseVectorStore

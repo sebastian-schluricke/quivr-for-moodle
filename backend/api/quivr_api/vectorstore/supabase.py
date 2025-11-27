@@ -1,8 +1,9 @@
 from typing import Any, List
 from uuid import UUID
 
-from langchain.docstore.document import Document
-from langchain.embeddings.base import Embeddings
+# LangChain 1.x: Documents and Embeddings moved to langchain_core
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
 from langchain_community.vectorstores import SupabaseVectorStore
 
 from quivr_api.logger import get_logger

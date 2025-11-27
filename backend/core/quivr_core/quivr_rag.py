@@ -3,7 +3,8 @@ from operator import itemgetter
 from typing import AsyncGenerator, Optional, Sequence
 
 # TODO(@aminediro): this is the only dependency to langchain package, we should remove it
-from langchain.retrievers import ContextualCompressionRetriever
+# LangChain 1.x: ContextualCompressionRetriever moved to langchain_classic
+from langchain_classic.retrievers import ContextualCompressionRetriever
 from langchain_core.callbacks import Callbacks
 from langchain_core.documents import BaseDocumentCompressor, Document
 from langchain_core.messages import AIMessage, HumanMessage

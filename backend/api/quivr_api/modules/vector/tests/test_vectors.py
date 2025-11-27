@@ -1,7 +1,8 @@
 from typing import List, Tuple
 
 import pytest
-from langchain.docstore.document import Document
+# LangChain 1.x: Document moved to langchain_core
+from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 from sqlmodel import Session, select
 

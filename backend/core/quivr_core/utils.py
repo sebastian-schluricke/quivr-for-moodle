@@ -34,6 +34,12 @@ def model_supports_function_calling(model_name: str):
         "gpt-4-turbo",
         "gpt-4o",
         "gpt-4o-mini",
+        # GPT-4.1 series (2025)
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        # GPT-5 chat models (2025)
+        "gpt-5-chat-latest",
     ]
     return model_name in models_supporting_function_calls
 
