@@ -1,7 +1,7 @@
 import time
 
-from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 
 from quivr_worker.files import File, compute_sha1
