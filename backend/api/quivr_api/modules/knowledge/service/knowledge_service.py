@@ -73,6 +73,30 @@ class KnowledgeService(BaseService[KnowledgeRepository]):
         except NoResultFound:
             raise FileNotFoundError(f"No knowledge for file_name: {file_name}")
 
+    async def get_knowledge_storage_path_by_id(
+        self, knowledge_id: UUID
+    ) -> tuple[str, str] | None:
+        """
+        Get storage path for a knowledge item using its ID.
+        Returns tuple of (storage_path, file_name) or None if not found.
+        """
+        try:
+            km = await self.repository.get_knowledge_by_id(knowledge_id)
+            if not km or not km.file_name:
+                return None
+            brains = await km.awaitable_attrs.brains
+            for b in brains:
+                storage_path = f"{b.brain_id}/{km.file_name}"
+                if check_file_exists(str(b.brain_id), km.file_name):
+                    return (storage_path, km.file_name)
+            # If file doesn't exist in storage, still return the path and filename
+            # so we can at least show the source name
+            if brains:
+                return (f"{brains[0].brain_id}/{km.file_name}", km.file_name)
+            return None
+        except NoResultFound:
+            return None
+
     async def list_knowledge(
         self, knowledge_id: UUID | None, user_id: UUID | None = None
     ) -> list[KnowledgeDB]:

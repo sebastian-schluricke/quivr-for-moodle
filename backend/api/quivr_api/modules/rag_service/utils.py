@@ -11,6 +11,16 @@ from quivr_api.modules.upload.service.generate_file_signed_url import (
 logger = logging.getLogger(__name__)
 
 
+def _parse_uuid(value: str | None) -> UUID | None:
+    """Try to parse a string as UUID, return None if invalid."""
+    if not value:
+        return None
+    try:
+        return UUID(value)
+    except (ValueError, TypeError):
+        return None
+
+
 # TODO: REFACTOR THIS, it does call the DB , so maybe in a service
 async def generate_source(
     knowledge_service: KnowledgeService,
@@ -66,10 +76,27 @@ async def generate_source(
             else:
                 # Check if the URL has already been generated
                 try:
-                    file_name = doc.metadata["file_name"]
-                    file_path = await knowledge_service.get_knowledge_storage_path(
-                        file_name=file_name, brain_id=brain_id
-                    )
+                    file_path = None
+                    actual_file_name = doc.metadata.get("file_name", "")
+
+                    # First try to use knowledge_id if available (more reliable)
+                    knowledge_id = _parse_uuid(doc.metadata.get("knowledge_id"))
+                    if knowledge_id:
+                        result = await knowledge_service.get_knowledge_storage_path_by_id(
+                            knowledge_id
+                        )
+                        if result:
+                            file_path, actual_file_name = result
+                            # Update name to use the actual file name from knowledge
+                            name = actual_file_name
+
+                    # Fall back to file_name lookup if knowledge_id didn't work
+                    if not file_path:
+                        file_name = doc.metadata["file_name"]
+                        file_path = await knowledge_service.get_knowledge_storage_path(
+                            file_name=file_name, brain_id=brain_id
+                        )
+
                     if file_path in generated_urls:
                         source_url = generated_urls[file_path]
                     else:
