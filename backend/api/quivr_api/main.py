@@ -22,7 +22,7 @@ from quivr_api.modules.misc.controller import misc_router
 from quivr_api.modules.models.controller.model_routes import model_router
 from quivr_api.modules.onboarding.controller import onboarding_router
 from quivr_api.modules.prompt.controller import prompt_router
-from quivr_api.modules.sync.controller import sync_router
+from quivr_api.modules.sync.controller import sync_router, moodle_sync_router
 from quivr_api.modules.upload.controller import upload_router
 from quivr_api.modules.user.controller import user_router
 from quivr_api.routes.crawl_routes import crawl_router
@@ -72,6 +72,7 @@ app.include_router(chat_router)
 app.include_router(crawl_router)
 app.include_router(assistant_router)
 app.include_router(sync_router)
+app.include_router(moodle_sync_router)
 app.include_router(onboarding_router)
 app.include_router(misc_router)
 app.include_router(analytics_router)
