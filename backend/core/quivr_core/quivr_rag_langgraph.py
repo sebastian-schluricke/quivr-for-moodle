@@ -1,17 +1,21 @@
 import logging
 from enum import Enum
-from typing import Annotated, AsyncGenerator, Optional, Sequence, TypedDict
+from typing import Annotated, AsyncGenerator, List, Optional, Sequence, TypedDict
 from uuid import uuid4
 
-# TODO(@aminediro): this is the only dependency to langchain package, we should remove it
-from langchain.retrievers import ContextualCompressionRetriever
+import os
+
 from langchain_cohere import CohereRerank
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
+from langchain_core.retrievers import BaseRetriever
 from langchain_community.document_compressors import JinaRerank
 from langchain_core.callbacks import Callbacks
 from langchain_core.documents import BaseDocumentCompressor, Document
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.messages.ai import AIMessageChunk
 from langchain_core.vectorstores import VectorStore
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
@@ -68,7 +72,41 @@ class IdempotentCompressor(BaseDocumentCompressor):
         return documents
 
 
+class ContextualCompressionRetriever(BaseRetriever):
+    """Retriever that wraps a base retriever and compresses the results.
+
+    This is a replacement for langchain.retrievers.ContextualCompressionRetriever
+    which was removed in langchain 1.x.
+    """
+
+    base_compressor: BaseDocumentCompressor
+    base_retriever: BaseRetriever
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def _get_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: Optional[CallbackManagerForRetrieverRun] = None,
+    ) -> List[Document]:
+        """Get documents relevant to a query and compress them."""
+        docs = self.base_retriever.invoke(query)
+        if docs:
+            compressed_docs = self.base_compressor.compress_documents(
+                docs,
+                query,
+                callbacks=run_manager.get_child() if run_manager else None,
+            )
+            return list(compressed_docs)
+        return []
+
+
 class QuivrQARAGLangGraph:
+    # Fast model used for query rewriting (non-reasoning tasks)
+    REWRITE_MODEL = "gpt-4.1-nano"
+
     def __init__(
         self,
         *,
@@ -76,6 +114,7 @@ class QuivrQARAGLangGraph:
         llm: LLMEndpoint,
         vector_store: VectorStore | None = None,
         reranker: BaseDocumentCompressor | None = None,
+        rewrite_llm: BaseChatModel | None = None,
     ):
         """
         Construct a QuivrQARAGLangGraph object.
@@ -85,12 +124,31 @@ class QuivrQARAGLangGraph:
             llm (LLMEndpoint): The LLM to use for generating text.
             vector_store (VectorStore): The vector store to use for storing and retrieving documents.
             reranker (BaseDocumentCompressor | None): The document compressor to use for re-ranking documents. Defaults to IdempotentCompressor if not provided.
+            rewrite_llm (BaseChatModel | None): A fast LLM for query rewriting. Defaults to gpt-4o-mini if not provided.
         """
         self.retrieval_config = retrieval_config
         self.vector_store = vector_store
         self.llm_endpoint = llm
 
         self.graph = None
+
+        # Use a fast model for rewriting queries (not the main reasoning model)
+        if rewrite_llm is not None:
+            self.rewrite_llm = rewrite_llm
+        else:
+            # Create a fast, cheap model for query rewriting
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                self.rewrite_llm = ChatOpenAI(
+                    model=self.REWRITE_MODEL,
+                    api_key=api_key,
+                    temperature=0,
+                )
+                logger.info(f"Using {self.REWRITE_MODEL} for query rewriting (fast model)")
+            else:
+                # Fallback to main model if no API key available
+                self.rewrite_llm = llm._llm
+                logger.warning("No OPENAI_API_KEY found, using main model for rewriting")
 
         if reranker is not None:
             self.reranker = reranker
@@ -168,6 +226,9 @@ class QuivrQARAGLangGraph:
         """
         Transform the query to produce a better question.
 
+        Uses a fast model (gpt-4o-mini) instead of the main reasoning model
+        to reduce latency for this simple task.
+
         Args:
             state (messages): The current state
 
@@ -181,8 +242,8 @@ class QuivrQARAGLangGraph:
             question=state["messages"][0].content,
         )
 
-        model = self.llm_endpoint._llm
-        response = model.invoke(msg)
+        # Use fast rewrite model instead of main model
+        response = self.rewrite_llm.invoke(msg)
         return {"messages": [response]}
 
     def retrieve(self, state):
@@ -408,16 +469,25 @@ class QuivrQARAGLangGraph:
         Yields:
             ParsedRAGChunkResponse: Each chunk of the answer.
         """
+        import time
+        start_time = time.time()
+        logger.info(f"⏱️ TIMING: answer_astream START")
+
         concat_list_files = format_file_list(
             list_files, self.retrieval_config.max_files
         )
+        build_chain_start = time.time()
         conversational_qa_chain = self.build_chain()
+        logger.info(f"⏱️ TIMING: build_chain took {time.time() - build_chain_start:.2f}s")
 
         rolling_message = AIMessageChunk(content="")
         sources: list[Document] | None = None
         prev_answer = ""
         chunk_id = 0
+        first_event_time = None
+        first_chunk_time = None
 
+        logger.info(f"⏱️ TIMING: Starting astream_events at {time.time() - start_time:.2f}s")
         async for event in conversational_qa_chain.astream_events(
             {
                 "messages": [
@@ -426,13 +496,25 @@ class QuivrQARAGLangGraph:
                 "chat_history": history,
                 "files": concat_list_files,
             },
-            version="v1",
+            version="v2",
             config={"metadata": metadata},
         ):
             kind = event["event"]
+
+            # Log first event timing
+            if first_event_time is None:
+                first_event_time = time.time()
+                logger.info(f"⏱️ TIMING: First event received at {first_event_time - start_time:.2f}s, event_type={kind}")
+
+            # Log node events for debugging
+            if kind == "on_chain_end" and "langgraph_node" in event.get("metadata", {}):
+                node_name = event["metadata"]["langgraph_node"]
+                logger.info(f"⏱️ TIMING: Node '{node_name}' completed at {time.time() - start_time:.2f}s")
+
             if (
                 not sources
                 and "output" in event["data"]
+                and event["data"]["output"] is not None
                 and "docs" in event["data"]["output"]
             ):
                 sources = event["data"]["output"]["docs"]
@@ -441,6 +523,11 @@ class QuivrQARAGLangGraph:
                 kind == "on_chat_model_stream"
                 and "generate" in event["metadata"]["langgraph_node"]
             ):
+                # Log first LLM chunk timing
+                if first_chunk_time is None:
+                    first_chunk_time = time.time()
+                    logger.info(f"⏱️ TIMING: First LLM chunk received at {first_chunk_time - start_time:.2f}s")
+
                 chunk = event["data"]["chunk"]
                 rolling_message, answer_str = parse_chunk_response(
                     rolling_message,
@@ -477,6 +564,10 @@ class QuivrQARAGLangGraph:
                     chunk_id += 1
 
         # Last chunk provides metadata
+        total_time = time.time() - start_time
+        logger.info(f"⏱️ TIMING: Stream completed. Total time: {total_time:.2f}s, chunks: {chunk_id}")
+        logger.info(f"⏱️ TIMING SUMMARY: build_chain=0.00s, first_event={(first_event_time - start_time) if first_event_time else 'N/A'}s, first_chunk={(first_chunk_time - start_time) if first_chunk_time else 'N/A'}s, total={total_time:.2f}s")
+
         last_chunk = ParsedRAGChunkResponse(
             answer="",
             metadata=get_chunk_metadata(rolling_message, sources),

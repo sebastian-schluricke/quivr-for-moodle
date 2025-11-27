@@ -7,7 +7,7 @@ import tiktoken
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from pydantic.v1 import SecretStr
+# SecretStr no longer needed - langchain 1.x accepts plain strings
 
 from quivr_core.brain.info import LLMInfo
 from quivr_core.config import DefaultModelSuppliers, LLMEndpointConfig
@@ -34,7 +34,7 @@ class LLMEndpoint:
             )
             try:
                 from transformers import AutoTokenizer
-
+                logger.info(f"Loading tokenizer from HuggingFace Hub: {llm_config.tokenizer_hub}")
                 self.tokenizer = AutoTokenizer.from_pretrained(llm_config.tokenizer_hub)
             except OSError:  # if we don't manage to connect to huggingface and/or no cached models are present
                 logger.warning(
@@ -65,39 +65,59 @@ class LLMEndpoint:
                 _llm = AzureChatOpenAI(
                     azure_deployment=deployment,  # type: ignore
                     api_version=api_version,
-                    api_key=SecretStr(config.llm_api_key)
-                    if config.llm_api_key
-                    else None,
+                    api_key=config.llm_api_key,
                     azure_endpoint=azure_endpoint,
                     max_tokens=config.max_output_tokens,
                 )
             elif config.supplier == DefaultModelSuppliers.ANTHROPIC:
                 _llm = ChatAnthropic(
                     model_name=config.model,
-                    api_key=SecretStr(config.llm_api_key)
-                    if config.llm_api_key
-                    else None,
+                    api_key=config.llm_api_key,
                     base_url=config.llm_base_url,
                     max_tokens=config.max_output_tokens,
                 )
             elif config.supplier == DefaultModelSuppliers.OPENAI:
-                _llm = ChatOpenAI(
-                    model=config.model,
-                    api_key=SecretStr(config.llm_api_key)
-                    if config.llm_api_key
-                    else None,
-                    base_url=config.llm_base_url,
-                    max_tokens=config.max_output_tokens,
-                )
+                # GPT-5/reasoning models require special handling:
+                # - max_completion_tokens instead of max_tokens
+                # - temperature=1 (no custom temperature allowed)
+                is_gpt5 = config.model.startswith("gpt-5") or config.model.startswith("o1") or config.model.startswith("o3")
+                logger.info(f"OPENAI supplier: model={config.model}, is_reasoning_model={is_gpt5}, max_output_tokens={config.max_output_tokens}")
+                if is_gpt5:
+                    # GPT-5/o1/o3 reasoning models require max_completion_tokens
+                    # langchain-openai 1.x fixes the streaming delay issue
+                    _llm = ChatOpenAI(
+                        model=config.model,
+                        api_key=config.llm_api_key,
+                        base_url=config.llm_base_url,
+                        temperature=1,  # Reasoning models only support temperature=1
+                        max_completion_tokens=config.max_output_tokens,
+                    )
+                else:
+                    _llm = ChatOpenAI(
+                        model=config.model,
+                        api_key=config.llm_api_key,
+                        base_url=config.llm_base_url,
+                        max_tokens=config.max_output_tokens,
+                    )
             else:
-                _llm = ChatOpenAI(
-                    model=config.model,
-                    api_key=SecretStr(config.llm_api_key)
-                    if config.llm_api_key
-                    else None,
-                    base_url=config.llm_base_url,
-                    max_tokens=config.max_output_tokens,
-                )
+                # Fallback: also check for GPT-5/reasoning models
+                is_gpt5 = config.model.startswith("gpt-5") or config.model.startswith("o1") or config.model.startswith("o3")
+                if is_gpt5:
+                    # GPT-5/o1/o3 reasoning models require special parameters
+                    _llm = ChatOpenAI(
+                        model=config.model,
+                        api_key=config.llm_api_key,
+                        base_url=config.llm_base_url,
+                        temperature=1,  # Reasoning models only support temperature=1
+                        max_completion_tokens=config.max_output_tokens,
+                    )
+                else:
+                    _llm = ChatOpenAI(
+                        model=config.model,
+                        api_key=config.llm_api_key,
+                        base_url=config.llm_base_url,
+                        max_tokens=config.max_output_tokens,
+                    )
             return cls(llm=_llm, llm_config=config)
 
         except ImportError as e:

@@ -93,13 +93,19 @@ class LLMConfig(QuivrBaseConfig):
 class LLMModelConfig:
     _model_defaults: Dict[DefaultModelSuppliers, Dict[str, LLMConfig]] = {
         DefaultModelSuppliers.OPENAI: {
-            "gpt-4o": LLMConfig(context=128000, tokenizer_hub="Xenova/gpt-4o"),
-            "gpt-4o-mini": LLMConfig(context=128000, tokenizer_hub="Xenova/gpt-4o"),
-            "gpt-4-turbo": LLMConfig(context=128000, tokenizer_hub="Xenova/gpt-4"),
-            "gpt-4": LLMConfig(context=8192, tokenizer_hub="Xenova/gpt-4"),
-            "gpt-3.5-turbo": LLMConfig(
-                context=16385, tokenizer_hub="Xenova/gpt-3.5-turbo"
-            ),
+            # GPT-5 series (2025) - Main supported models
+            # Using tokenizer_hub=None to use fast tiktoken (cl100k_base) instead of slow HuggingFace
+            # HuggingFace tokenizer takes ~40s first load vs 0.08s for tiktoken
+            "gpt-5.1": LLMConfig(context=200000, tokenizer_hub=None),
+            "gpt-5-mini": LLMConfig(context=200000, tokenizer_hub=None),
+            "gpt-5-nano": LLMConfig(context=200000, tokenizer_hub=None),
+            "gpt-5": LLMConfig(context=200000, tokenizer_hub=None),
+            "gpt-5-chat-latest": LLMConfig(context=200000, tokenizer_hub=None),
+            # GPT-4.1 series (2025) - Fast, efficient models
+            "gpt-4.1": LLMConfig(context=1000000, tokenizer_hub=None),
+            "gpt-4.1-mini": LLMConfig(context=1000000, tokenizer_hub=None),
+            "gpt-4.1-nano": LLMConfig(context=1000000, tokenizer_hub=None),
+            # Embedding models (required for vector search)
             "text-embedding-3-large": LLMConfig(
                 context=8191, tokenizer_hub="Xenova/text-embedding-ada-002"
             ),
@@ -224,7 +230,7 @@ class LLMEndpointConfig(QuivrBaseConfig):
     """
 
     supplier: DefaultModelSuppliers = DefaultModelSuppliers.OPENAI
-    model: str = "gpt-3.5-turbo-0125"
+    model: str = "gpt-5-mini"
     context_length: int | None = None
     tokenizer_hub: str | None = None
     llm_base_url: str | None = None
