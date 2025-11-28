@@ -59,3 +59,7 @@ class ApiKeyService:
             raise HTTPException(status_code=400, detail="Invalid API key.")
 
         return UserIdentity(email=email, id=user_id)
+
+    async def get_user_email_by_id(self, user_id: str) -> str | None:
+        """Get user email by user ID for chat token authentication."""
+        return user_service.get_user_email_by_user_id(user_id)

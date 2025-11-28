@@ -10,6 +10,7 @@ from quivr_api.middlewares.auth.jwt_token_handler import (
     verify_token,
 )
 from quivr_api.modules.api_key.service.api_key_service import ApiKeyService
+from quivr_api.modules.chat_token.service.chat_token_service import chat_token_service
 from quivr_api.modules.user.entity.user_identity import UserIdentity
 
 api_key_service = ApiKeyService()
@@ -48,16 +49,35 @@ class AuthBearer(HTTPBearer):
     ) -> UserIdentity:
         if os.environ.get("AUTHENTICATE") == "false":
             return self.get_test_user()
-        elif verify_token(token):
+
+        # 1. Check if it's a standard JWT token (Supabase auth)
+        if verify_token(token):
             return decode_access_token(token)
-        elif await api_key_service.verify_api_key(
-            token,
-        ):
-            return await api_key_service.get_user_from_api_key(
-                token,
+
+        # 2. Check if it's a scoped chat token
+        chat_payload = chat_token_service.verify_chat_token(token)
+        if chat_payload:
+            logger.info(
+                f"Chat token authenticated for brain {chat_payload.brain_id}, user_id={chat_payload.user_id}"
             )
-        else:
-            raise HTTPException(status_code=401, detail="Invalid token or api key.")
+            # Fetch user email for usage tracking
+            try:
+                user_email = await api_key_service.get_user_email_by_id(chat_payload.user_id)
+            except Exception as e:
+                logger.error(f"Failed to fetch user email for user_id={chat_payload.user_id}: {e}")
+                user_email = None
+
+            return UserIdentity(
+                id=chat_payload.user_id,
+                email=user_email,
+                scoped_brain_id=chat_payload.brain_id,
+            )
+
+        # 3. Check if it's an API key
+        if await api_key_service.verify_api_key(token):
+            return await api_key_service.get_user_from_api_key(token)
+
+        raise HTTPException(status_code=401, detail="Invalid token or api key.")
 
     def get_test_user(self) -> UserIdentity:
         return UserIdentity(

@@ -27,3 +27,5 @@ class UserIdentity(BaseModel):
     onboarded: Optional[bool] = None
     company_size: Optional[str] = None
     usage_purpose: Optional[str] = None
+    # Scoped brain ID for chat tokens (limits access to specific brain)
+    scoped_brain_id: Optional[UUID] = None

@@ -40,5 +40,15 @@ def decode_access_token(token: str) -> UserIdentity:
 
 
 def verify_token(token: str):
-    payload = decode_access_token(token)
-    return payload is not None
+    """Verify if token is a valid Supabase JWT (not a chat token)."""
+    try:
+        payload = jwt.decode(
+            token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_aud": False}
+        )
+        # Chat tokens have token_type="chat_token" - don't treat them as regular JWTs
+        if payload.get("token_type") == "chat_token":
+            return False
+        # Regular JWTs should have an email field
+        return payload.get("email") is not None or payload.get("sub") is not None
+    except JWTError:
+        return False

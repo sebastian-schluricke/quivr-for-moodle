@@ -17,6 +17,7 @@ from quivr_api.modules.api_key.controller import api_key_router
 from quivr_api.modules.assistant.controller import assistant_router
 from quivr_api.modules.brain.controller import brain_router
 from quivr_api.modules.chat.controller import chat_router
+from quivr_api.modules.chat_token.controller import chat_token_router
 from quivr_api.modules.knowledge.controller import knowledge_router
 from quivr_api.modules.misc.controller import misc_router
 from quivr_api.modules.models.controller.model_routes import model_router
@@ -69,6 +70,7 @@ app.add_middleware(LoggingMiddleware)
 
 app.include_router(brain_router)
 app.include_router(chat_router)
+app.include_router(chat_token_router)
 app.include_router(crawl_router)
 app.include_router(assistant_router)
 app.include_router(sync_router)

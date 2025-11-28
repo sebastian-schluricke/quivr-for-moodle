@@ -63,6 +63,24 @@ def validate_authorization(user_id, brain_id):
         )
 
 
+def validate_scoped_token(current_user: UserIdentity, brain_id: UUID | None):
+    """
+    Validate that a scoped chat token is only used for the brain it was issued for.
+    Raises HTTPException 403 if the token is scoped but used for a different brain.
+    """
+    if current_user.scoped_brain_id is not None:
+        if brain_id is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Chat token requires a brain_id parameter",
+            )
+        if current_user.scoped_brain_id != brain_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Chat token is not valid for this brain",
+            )
+
+
 @chat_router.get("/chat/healthz", tags=["Health"])
 async def healthz():
     return {"status": "ok"}
@@ -182,6 +200,9 @@ async def create_question_handler(
     vector_service: VectorServiceDep,
     brain_id: Annotated[UUID | None, Query()] = None,
 ):
+    # Validate scoped chat tokens
+    validate_scoped_token(current_user, brain_id)
+
     models = await model_service.get_models()
 
     model_to_use = None
@@ -275,6 +296,9 @@ async def create_stream_question_handler(
     logger.info(
         f"Creating question for chat {chat_id} with brain {brain_id} of type {type(brain_id)}"
     )
+
+    # Validate scoped chat tokens
+    validate_scoped_token(current_user, brain_id)
 
     models = await model_service.get_models()
     # Check if the brain_id is a model name hashed to a uuid and then returns the model name
