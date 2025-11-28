@@ -35,7 +35,6 @@ DEFAULT_MOODLE_SERVICE = "moodle_mobile_app"
 )
 def authorize_moodle_post(
     request: Request,
-    name: str,
     current_user: UserIdentity = Depends(get_current_user),
 ):
     """
@@ -44,7 +43,6 @@ def authorize_moodle_post(
 
     Args:
         request (Request): The request object.
-        name (str): The default connection name.
         current_user (UserIdentity): The current authenticated user.
 
     Returns:
@@ -55,7 +53,7 @@ def authorize_moodle_post(
 
     # Return URL to the form page
     return {
-        "authorization_url": f"{backend_url}/sync/moodle/form?name={name}"
+        "authorization_url": f"{backend_url}/sync/moodle/form"
     }
 
 
@@ -63,24 +61,51 @@ def authorize_moodle_post(
     "/sync/moodle/form",
     tags=["Sync"],
 )
-def authorize_moodle_get(
-    name: str = "Moodle Connection",
-):
+def authorize_moodle_get():
     """
     Serve the Moodle connection form (GET request from popup).
-
-    Args:
-        name (str): The default connection name.
+    The Moodle URL is configured via MOODLE_URL environment variable.
 
     Returns:
-        HTMLResponse: A simple HTML form to collect Moodle credentials.
+        HTMLResponse: A simple HTML form to collect Moodle credentials (username + password only).
     """
     from fastapi.responses import HTMLResponse
 
     # Get the backend URL for form submission
     backend_url = os.getenv("BACKEND_URL", "http://localhost:5050")
 
-    # Return a simple HTML form
+    # Get Moodle URL from environment - this is the only Moodle instance allowed
+    moodle_url = os.getenv("MOODLE_URL")
+    if not moodle_url:
+        return HTMLResponse(
+            content="""
+            <!DOCTYPE html>
+            <html lang="de">
+            <head>
+                <meta charset="UTF-8">
+                <title>Fehler - Moodle nicht konfiguriert</title>
+                <style>
+                    body { font-family: sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+                    .error { background: #ffebee; border: 1px solid #f44336; padding: 20px; border-radius: 8px; }
+                    h2 { color: #c62828; margin-top: 0; }
+                </style>
+            </head>
+            <body>
+                <div class="error">
+                    <h2>Moodle nicht konfiguriert</h2>
+                    <p>Die Moodle-URL wurde nicht in der Serverkonfiguration hinterlegt.</p>
+                    <p>Bitte kontaktieren Sie den Administrator.</p>
+                </div>
+            </body>
+            </html>
+            """,
+            status_code=500
+        )
+
+    # Get frontend URL for postMessage origin check
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # Return a simple HTML form with only username and password
     html_content = f"""
     <!DOCTYPE html>
     <html lang="de">
@@ -105,6 +130,15 @@ def authorize_moodle_get(
             h2 {{
                 margin-top: 0;
                 color: #333;
+            }}
+            .info-box {{
+                background: #e3f2fd;
+                border: 1px solid #2196f3;
+                padding: 12px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                font-size: 14px;
+                color: #1565c0;
             }}
             .form-group {{
                 margin-bottom: 20px;
@@ -141,6 +175,10 @@ def authorize_moodle_get(
             button:hover {{
                 background: #45a049;
             }}
+            button:disabled {{
+                background: #ccc;
+                cursor: not-allowed;
+            }}
             .error {{
                 color: #f44336;
                 margin-top: 10px;
@@ -156,23 +194,17 @@ def authorize_moodle_get(
     <body>
         <div class="form-container">
             <h2>Moodle Verbindung einrichten</h2>
+            <div class="info-box">
+                Verbindung zu: <strong>{moodle_url}</strong>
+            </div>
             <form id="moodleForm">
                 <div class="form-group">
-                    <label for="name">Verbindungsname:</label>
-                    <input type="text" id="name" name="name" value="{name}" required>
-                </div>
-                <div class="form-group">
-                    <label for="moodle_url">Moodle URL:</label>
-                    <input type="url" id="moodle_url" name="moodle_url"
-                           placeholder="https://moodle.beispiel.de" required>
-                </div>
-                <div class="form-group">
                     <label for="username">Benutzername:</label>
-                    <input type="text" id="username" name="username" required>
+                    <input type="text" id="username" name="username" required autocomplete="username">
                 </div>
                 <div class="form-group">
                     <label for="password">Passwort:</label>
-                    <input type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
                 </div>
                 <button type="submit">Verbinden</button>
                 <div class="error" id="error"></div>
@@ -195,8 +227,6 @@ def authorize_moodle_get(
                 button.textContent = 'Verbinde...';
 
                 const formData = {{
-                    name: form.name.value,
-                    moodle_url: form.moodle_url.value,
                     username: form.username.value,
                     password: form.password.value
                 }};
@@ -253,9 +283,10 @@ def authorize_moodle_get(
                     const messageHandler = (event) => {{
                         console.log('[Popup] Received message:', event.origin, event.data);
 
-                        // Accept messages from localhost (any port)
-                        if (!event.origin.startsWith('http://localhost:')) {{
-                            console.log('[Popup] Rejected message from non-localhost origin');
+                        // Accept messages from configured frontend URL
+                        const allowedOrigin = '{frontend_url}';
+                        if (!event.origin.startsWith(allowedOrigin.split('://')[0] + '://' + allowedOrigin.split('://')[1].split(':')[0])) {{
+                            console.log('[Popup] Rejected message from unauthorized origin');
                             return;
                         }}
 
@@ -270,7 +301,7 @@ def authorize_moodle_get(
 
                     console.log('[Popup] Sending AUTH_TOKEN_REQUEST to parent');
                     // Request token from parent
-                    window.opener.postMessage({{ type: 'AUTH_TOKEN_REQUEST' }}, 'http://localhost:3000');
+                    window.opener.postMessage({{ type: 'AUTH_TOKEN_REQUEST' }}, '{frontend_url}');
 
                     // Timeout after 5 seconds
                     setTimeout(() => {{
@@ -289,9 +320,7 @@ def authorize_moodle_get(
 
 
 class MoodleConnectInput(BaseModel):
-    """Input model for Moodle connection."""
-    name: str
-    moodle_url: str
+    """Input model for Moodle connection (simplified - only credentials)."""
     username: str
     password: str
 
@@ -308,21 +337,30 @@ def connect_moodle(
 ):
     """
     Connect to Moodle using username and password.
+    The Moodle URL is configured via MOODLE_URL environment variable.
 
     Args:
         request (Request): The request object.
-        connection_input (MoodleConnectInput): Connection details (name, url, username, password).
+        connection_input (MoodleConnectInput): Connection details (username, password only).
         current_user (UserIdentity): The current authenticated user.
 
     Returns:
         dict: Success message with connection details.
     """
+    # Get Moodle URL from environment - this is the only Moodle instance allowed
+    moodle_url = os.getenv("MOODLE_URL")
+    if not moodle_url:
+        raise HTTPException(
+            status_code=500,
+            detail="Moodle URL not configured. Please set MOODLE_URL environment variable."
+        )
+
     logger.debug(
-        f"Connecting to Moodle for user: {current_user.id}, url: {connection_input.moodle_url}"
+        f"Connecting to Moodle for user: {current_user.id}, url: {moodle_url}"
     )
 
     # Build token endpoint URL
-    token_endpoint = f"{connection_input.moodle_url.rstrip('/')}/login/token.php"
+    token_endpoint = f"{moodle_url.rstrip('/')}/login/token.php"
 
     # Prepare token request
     token_data = {
@@ -359,7 +397,7 @@ def connect_moodle(
         logger.info(f"Successfully obtained token for user: {current_user.id}")
 
         # Get user info from Moodle Web Services
-        webservice_endpoint = f"{connection_input.moodle_url.rstrip('/')}/webservice/rest/server.php"
+        webservice_endpoint = f"{moodle_url.rstrip('/')}/webservice/rest/server.php"
         webservice_params = {
             "wstoken": wstoken,
             "wsfunction": "core_webservice_get_site_info",
@@ -385,17 +423,9 @@ def connect_moodle(
 
         logger.info(f"Retrieved Moodle user info for: {user_email} (userid: {moodle_user_id})")
 
-        # Generate a descriptive connection name if the provided name looks auto-generated
-        connection_name = connection_input.name
-        auto_generated_patterns = ["Moodle Connection", "Moodle Verbindung"]
-
-        # Check if name looks auto-generated (contains mostly random chars or matches patterns)
-        if (any(pattern in connection_input.name for pattern in auto_generated_patterns) or
-            len([c for c in connection_input.name if c.isalnum()]) > 15 and
-            not any(c.isspace() for c in connection_input.name)):
-            # Generate a better name: "Moodle - Site Name (username)"
-            connection_name = f"Moodle - {site_name} ({connection_input.username})"
-            logger.info(f"Auto-generated descriptive name: {connection_name}")
+        # Auto-generate connection name: "Moodle - Site Name (username)"
+        connection_name = f"Moodle - {site_name} ({connection_input.username})"
+        logger.info(f"Auto-generated connection name: {connection_name}")
 
         # Create sync user entry
         sync_user_input = SyncsUserInput(
@@ -405,7 +435,7 @@ def connect_moodle(
             credentials={"wstoken": wstoken},
             state={},
             additional_data={
-                "moodle_url": connection_input.moodle_url,
+                "moodle_url": moodle_url,
                 "username": connection_input.username,
                 "fullname": user_fullname,
                 "user_id": moodle_user_id,  # Store Moodle user ID
@@ -421,7 +451,7 @@ def connect_moodle(
         return {
             "message": "Successfully connected to Moodle",
             "sync_id": created_sync.get("id") if isinstance(created_sync, dict) else created_sync.id,
-            "moodle_url": connection_input.moodle_url,
+            "moodle_url": moodle_url,
             "email": user_email,
             "fullname": user_fullname,
         }
