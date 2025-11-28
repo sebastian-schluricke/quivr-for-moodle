@@ -55,8 +55,7 @@ COPY core/MegaParse/megaparse/__init__.py ./core/MegaParse/megaparse/__init__.py
 RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir -r requirements.lock
 
 RUN playwright install --with-deps && \
-    python -c "from unstructured.nlp.tokenize import download_nltk_packages; download_nltk_packages()" && \
-    python -c "import nltk;nltk.download('punkt_tab'); nltk.download('averaged_perceptron_tagger_eng')"
+    python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab'); nltk.download('averaged_perceptron_tagger'); nltk.download('averaged_perceptron_tagger_eng')"
 
 
 ENV PYTHONPATH=/app

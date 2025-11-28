@@ -1,3 +1,4 @@
+/* eslint-disable max-lines, max-depth, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any, padding-line-between-statements */
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -156,9 +157,13 @@ export const ConnectionSection = ({
       const messageHandler = (event: MessageEvent) => {
         console.log('[Parent] Received message:', event.origin, event.data);
 
-        // Only accept messages from localhost
-        if (!event.origin.startsWith('http://localhost:')) {
-          console.log('[Parent] Rejected non-localhost message');
+        // Accept messages from localhost or the backend URL
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
+        const isLocalhost = event.origin.startsWith('http://localhost:');
+        const isBackend = backendUrl && event.origin.startsWith(backendUrl.replace(/\/$/, ''));
+
+        if (!isLocalhost && !isBackend) {
+          console.log('[Parent] Rejected message from unknown origin:', event.origin);
           return;
         }
 
@@ -257,7 +262,7 @@ export const ConnectionSection = ({
             return (
               <ConnectionIcon
                 key={index}
-                letter={displayLabel[0] || "?"}
+                letter={displayLabel[0] ?? "?"}
                 index={index}
               />
             );

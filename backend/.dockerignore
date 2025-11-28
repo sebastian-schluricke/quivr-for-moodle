@@ -10,5 +10,6 @@
 **/.docusaurus/
 **/node_modules/
 **/.venv/
+**/venv/
 **/.tox/
 **/.tox-docker/

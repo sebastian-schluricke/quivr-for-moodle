@@ -30,7 +30,7 @@ export const SchoolLogo = ({
 
   useEffect(() => {
     // Get school name from environment or use default
-    const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME || "Eckener-Schule";
+    const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME ?? "Eckener-Schule";
     setAlt(`${schoolName} Logo`);
 
     // Check for color-specific logos first
@@ -47,7 +47,7 @@ export const SchoolLogo = ({
       setSrc(colorLogo);
     } else {
       const defaultLogo =
-        process.env.NEXT_PUBLIC_SCHOOL_LOGO_PATH || "/eckener-schule-logo.png";
+        process.env.NEXT_PUBLIC_SCHOOL_LOGO_PATH ?? "/eckener-schule-logo.png";
       setSrc(defaultLogo);
     }
   }, [color]);

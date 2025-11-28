@@ -123,7 +123,6 @@ backend/START_SCRIPTS_README.md
 CLAUDE.md
 DEVELOPMENT.md
 LOCAL_DEVELOPMENT_SETUP.md
-MOODLE_OAUTH_SETUP.md
 RUN_CONFIGURATIONS.md
 WINDOWS_SETUP.md
 chat_token_documentation.md
@@ -139,3 +138,6 @@ testing/
 
 # Images
 eckener-schule.png
+
+# Docker config (separate login for Quivr)
+.docker-quivr/

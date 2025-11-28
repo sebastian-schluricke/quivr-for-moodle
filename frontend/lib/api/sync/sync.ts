@@ -125,6 +125,7 @@ export const getUserSyncs = async (
   return (await axiosInstance.get<Sync[]>("/sync")).data;
 };
 
+/* eslint-disable complexity, max-depth, @typescript-eslint/no-unnecessary-condition */
 export const getSyncFiles = async (
   axiosInstance: AxiosInstance,
   userSyncId: number,
@@ -140,10 +141,10 @@ export const getSyncFiles = async (
       );
 
       // Transform Moodle courses to SyncElements format
-      const courses = response.data.courses || [];
+      const courses = response.data.courses ?? [];
       const files: SyncElement[] = courses.map((course) => ({
         id: String(course.id),
-        name: course.displayname || course.fullname || course.shortname,
+        name: course.displayname ?? course.fullname ?? course.shortname,
         is_folder: true,
         // Don't set icon - let the component use the default folder icon
       }));
@@ -156,35 +157,37 @@ export const getSyncFiles = async (
       );
 
       // Transform Moodle sections/modules to SyncElements format
-      const sections = response.data.sections || [];
+      const sections = response.data.sections ?? [];
       const files: SyncElement[] = [];
 
       for (const section of sections) {
         // Add section as a folder
         files.push({
           id: `section_${section.id}`,
-          name: section.name || `Section ${section.section_number}`,
+          name: section.name ?? `Section ${section.section_number}`,
           is_folder: true,
           // Don't set icon - let the component use the default folder icon
         });
 
         // Add modules/files within the section
-        for (const module of section.modules || []) {
+        const sectionModules = section.modules ?? [];
+        for (const mod of sectionModules) {
           // Add module files
-          for (const file of module.files || []) {
+          const modFiles = mod.files ?? [];
+          for (const file of modFiles) {
             files.push({
-              id: `file_${section.id}_${module.id}_${file.filename}`,
-              name: `${module.name} - ${file.filename}`,
+              id: `file_${section.id}_${mod.id}_${file.filename}`,
+              name: `${mod.name} - ${file.filename}`,
               is_folder: false,
               // Don't set icon - let the component use the default file icon
             });
           }
 
           // If module has URL but no files, add as a link item
-          if ((module.files?.length === 0 || !module.files) && module.url) {
+          if (modFiles.length === 0 && mod.url) {
             files.push({
-              id: `module_${section.id}_${module.id}`,
-              name: `${module.name} (${module.type})`,
+              id: `module_${section.id}_${mod.id}`,
+              name: `${mod.name} (${mod.type})`,
               is_folder: false,
               // Don't set icon - let the component use the default file icon
             });

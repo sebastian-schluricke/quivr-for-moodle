@@ -1,4 +1,4 @@
-FROM node:18.19.0-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -23,13 +23,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Runtime-configurable environment variables use placeholders
+# These will be replaced at container startup by entrypoint.sh
+ENV NEXT_PUBLIC_BACKEND_URL=__RUNTIME_NEXT_PUBLIC_BACKEND_URL__
+ENV NEXT_PUBLIC_SUPABASE_URL=__RUNTIME_NEXT_PUBLIC_SUPABASE_URL__
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=__RUNTIME_NEXT_PUBLIC_SUPABASE_ANON_KEY__
+ENV NEXT_PUBLIC_FRONTEND_URL=__RUNTIME_NEXT_PUBLIC_FRONTEND_URL__
+ENV NEXT_PUBLIC_AUTH_MODES=__RUNTIME_NEXT_PUBLIC_AUTH_MODES__
+
+# Build-time only variables (not runtime configurable)
 ARG NEXT_PUBLIC_ENV
-ARG NEXT_PUBLIC_BACKEND_URL
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_CMS_URL
-ARG NEXT_PUBLIC_FRONTEND_URL
-ARG NEXT_PUBLIC_AUTH_MODES  # Make sure this is declared here if it influences the build
 ARG NEXT_PUBLIC_SHOW_TOKENS
 ARG NEXT_PUBLIC_PROJECT_NAME
 ARG NEXT_PUBLIC_POSTHOG_KEY
@@ -37,12 +41,7 @@ ARG NEXT_PUBLIC_POSTHOG_HOST
 ARG SENTRY_AUTH_TOKEN
 ARG NEXT_PUBLIC_INTERCOM_APP_ID
 ENV NEXT_PUBLIC_ENV=$NEXT_PUBLIC_ENV
-ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_CMS_URL=$NEXT_PUBLIC_CMS_URL
-ENV NEXT_PUBLIC_FRONTEND_URL=$NEXT_PUBLIC_FRONTEND_URL
-ENV NEXT_PUBLIC_AUTH_MODES=$NEXT_PUBLIC_AUTH_MODES 
 ENV NEXT_PUBLIC_SHOW_TOKENS=$NEXT_PUBLIC_SHOW_TOKENS
 ENV NEXT_PUBLIC_PROJECT_NAME=$NEXT_PUBLIC_PROJECT_NAME
 ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
@@ -82,6 +81,10 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy entrypoint script for runtime environment variable injection
+COPY --chown=nextjs:nodejs entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -90,8 +93,7 @@ ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-ARG NEXT_PUBLIC_AUTH_MODES
-ENV NEXT_PUBLIC_AUTH_MODES=$NEXT_PUBLIC_AUTH_MODES
+# Build-time only variables
 ARG NEXT_PUBLIC_SHOW_TOKENS
 ENV NEXT_PUBLIC_SHOW_TOKENS=$NEXT_PUBLIC_SHOW_TOKENS
 ARG NEXT_PUBLIC_PROJECT_NAME
@@ -105,6 +107,13 @@ ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ARG NEXT_PUBLIC_INTERCOM_APP_ID
 ENV NEXT_PUBLIC_INTERCOM_APP_ID=$NEXT_PUBLIC_INTERCOM_APP_ID
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+# Runtime-configurable environment variables (set via docker run -e or docker-compose)
+# These are injected at container startup by entrypoint.sh:
+# - NEXT_PUBLIC_BACKEND_URL
+# - NEXT_PUBLIC_SUPABASE_URL
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY
+# - NEXT_PUBLIC_FRONTEND_URL
+# - NEXT_PUBLIC_AUTH_MODES
+
+# Use entrypoint script to inject runtime environment variables
+ENTRYPOINT ["./entrypoint.sh"]

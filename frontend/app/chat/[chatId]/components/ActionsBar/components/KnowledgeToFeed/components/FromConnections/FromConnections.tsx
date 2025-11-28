@@ -25,10 +25,8 @@ export const FromConnections = (): JSX.Element => {
   const [currentFiles, setCurrentFiles] = useState<SyncElement[]>([]);
   const [currentFolders, setCurrentFolders] = useState<SyncElement[]>([]);
   const { getSyncFiles } = useSync();
-  const { userData } = useUserData();
+  useUserData(); // Hook kept for side effects
   const [loading, setLoading] = useState(false);
-
-  const isPremium = userData?.is_premium;
 
   useEffect(() => {
     setCurrentFiles(
@@ -48,9 +46,9 @@ export const FromConnections = (): JSX.Element => {
       setLoading(true);
       let res;
       if (folderId !== null) {
-        res = await getSyncFiles(userSyncId, folderId, currentProvider);
+        res = await getSyncFiles(userSyncId, folderId, currentProvider ?? undefined);
       } else {
-        res = await getSyncFiles(userSyncId, undefined, currentProvider);
+        res = await getSyncFiles(userSyncId, undefined, currentProvider ?? undefined);
       }
       setCurrentSyncElements(res);
     } catch (error) {
