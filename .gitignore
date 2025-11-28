@@ -103,3 +103,39 @@ backend/core/examples/chatbot/.chainlit/translations/en-US.json
 .tox
 Pipfile
 *.pkl
+
+# IDE
+.idea/
+.run/
+*.iml
+
+# Virtual environments
+backend/api/venv/
+**/venv/
+
+# Local development
+supabase
+supabase/
+backend/*.sh
+backend/START_SCRIPTS_README.md
+
+# Documentation (local only)
+CLAUDE.md
+DEVELOPMENT.md
+LOCAL_DEVELOPMENT_SETUP.md
+MOODLE_OAUTH_SETUP.md
+RUN_CONFIGURATIONS.md
+WINDOWS_SETUP.md
+chat_token_documentation.md
+quivr_api_usage_guide.md
+docs/
+
+# Windows specific
+backend/requirements_windows.txt
+
+# Test files
+test_*.py
+testing/
+
+# Images
+eckener-schule.png
