@@ -1,14 +1,37 @@
 # Quivr for Moodle - RAG Backend für Schulen
 
-Ein Fork von [QuivrHQ/quivr](https://github.com/QuivrHQ/quivr), optimiert für die Integration mit Moodle-Lernplattformen. Ermöglicht Schulen, KI-gestützte Wissensdatenbanken (Brains) zu erstellen und diese in Moodle-Kursen bereitzustellen.
+Ein Fork von [QuivrHQ/quivr](https://github.com/QuivrHQ/quivr), optimiert für die Integration mit Moodle-Lernplattformen.
 
-## Übersicht
+## Pädagogischer Ansatz
 
-Quivr ist eine RAG-Plattform (Retrieval-Augmented Generation), die es ermöglicht, Dokumente hochzuladen und einen KI-Chatbot zu erstellen, der Fragen basierend auf diesen Dokumenten beantwortet. Dieser Fork erweitert Quivr um spezielle Features für den Schulbetrieb:
+Lernende haben oft Hemmungen, im Unterricht Fragen zu stellen - sei es aus Angst, sich zu blamieren, oder weil die passende Gelegenheit fehlt. Ein KI-Assistent, der auf den Kursmaterialien basiert, bietet hier einen niedrigschwelligen Zugang:
 
-- **Scoped Token System**: Sichere, zeitlich begrenzte Tokens für Moodle-Integration
-- **Moodle-Sync**: Synchronisation von Moodle-Kursmaterialien als Knowledge Base
-- **Vereinfachte API**: Optimierte Endpunkte für das Moodle-Plugin
+- **Anonyme Hilfe**: Schüler:innen können jederzeit Fragen stellen, ohne sich vor Mitschüler:innen zu exponieren
+- **Einblick für Lehrkräfte**: Die gestellten Fragen zeigen, wo Verständnisprobleme liegen - ein wertvolles Feedback für die Unterrichtsgestaltung
+- **Immer verfügbar**: Der Assistent beantwortet Fragen auch außerhalb der Unterrichtszeit
+- **Quellenbasiert**: Antworten beziehen sich auf die tatsächlichen Kursmaterialien
+
+## Features
+
+### Moodle-Integration
+
+- **Automatische Synchronisation**: Kursmaterialien werden direkt aus Moodle indexiert
+- **Sichtbarkeitssteuerung**: Nur für Schüler:innen sichtbare Abschnitte werden in die Wissensbasis aufgenommen
+- **Mehrere Assistenten pro Kurs**: Verschiedene Brains für unterschiedliche Themengebiete oder Lernziele
+- **Popup-Chat**: Schwebender Chat-Button auf allen Kursseiten verfügbar
+
+### Didaktische Optionen
+
+- **Gegenfragen-Modus**: Der Assistent kann mit Rückfragen antworten, um eigenständiges Denken zu fördern
+- **Quiz-Integration**: Einbettung von Verständnisfragen in die Konversation
+- **Anpassbare Prompts**: Verhalten des Assistenten an pädagogische Ziele anpassbar
+
+### Sicherheit
+
+- **Scoped Token System**: Zeitlich begrenzte, brain-spezifische Tokens - API-Keys werden nie an den Browser übertragen
+- **Datenschutz**: Self-Hosted Lösung, alle Daten bleiben auf dem eigenen Server
+
+## Architektur
 
 **Zusammenspiel mit Moodle:**
 ```
@@ -20,10 +43,7 @@ Quivr ist eine RAG-Plattform (Retrieval-Augmented Generation), die es ermöglich
 └─────────────────┘         └─────────────────┘         └─────────────────┘
 ```
 
-## Architektur
-
-Das System besteht aus drei Docker Compose Stacks:
-
+**Server-Infrastruktur (drei Docker Compose Stacks):**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Server                                  │
@@ -40,7 +60,6 @@ Das System besteht aus drei Docker Compose Stacks:
 │  ┌─────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
 │  │  Supabase   │    │  Quivr Backend  │    │  Quivr Worker   │  │
 │  │  (Kong API) │    │  (FastAPI)      │    │  (Celery)       │  │
-│  │supabase.esfl│    │   quivr.esfl    │    │                 │  │
 │  └──────┬──────┘    └────────┬────────┘    └─────────┬───────┘  │
 │         │                    │                       │          │
 │         └────────────────────┼───────────────────────┘          │
@@ -55,8 +74,6 @@ Das System besteht aus drei Docker Compose Stacks:
 ```
 
 ## Unterstützte LLM-Modelle
-
-Das System unterstützt folgende OpenAI-Modelle:
 
 | Modell | Beschreibung | Empfohlen |
 |--------|--------------|-----------|
@@ -154,7 +171,6 @@ docker compose up -d
 ```bash
 mkdir -p ~/quivr && cd ~/quivr
 git clone https://github.com/sebastian-schluricke/quivr-for-moodle.git .
-git checkout develop
 cp .env.example .env
 ```
 
@@ -173,16 +189,21 @@ PG_DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@supabase-db:5432/postg
 BACKEND_URL=https://quivr.ihre-schule.de
 ```
 
-**Datenbank-Migrationen ausführen:**
+**Datenbank-Migrationen mit Supabase CLI:**
 ```bash
-# In Supabase-Container oder via psql
-docker exec -it supabase-db psql -U postgres -d postgres
+# Supabase CLI installieren (falls noch nicht vorhanden)
+# https://supabase.com/docs/guides/cli
 
-# SQL-Migrationen aus backend/supabase/migrations/ ausführen
+# In das Backend-Verzeichnis wechseln
+cd ~/quivr/backend
+
+# Migrationen auf die Datenbank anwenden
+supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@localhost:5432/postgres"
 ```
 
 **Quivr starten:**
 ```bash
+cd ~/quivr
 docker compose up -d
 ```
 
@@ -261,7 +282,7 @@ docker exec supabase-db pg_dump -U postgres postgres > backup_$(date +%Y%m%d).sq
 
 ```bash
 cd ~/quivr
-git pull origin develop
+git pull origin main
 docker compose down
 docker compose build
 docker compose up -d
@@ -309,8 +330,9 @@ quivr-for-moodle/
 │   │   └── quivr_core/
 │   │       ├── prompts.py      # System Prompts
 │   │       └── quivr_rag.py    # RAG Pipeline
+│   ├── supabase/
+│   │   └── migrations/         # Datenbank-Migrationen
 │   └── worker/                 # Celery Worker
-├── supabase/                   # Database Migrations
 ├── docker-compose.yml
 └── .env.example
 ```
