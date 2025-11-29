@@ -49,6 +49,7 @@ def _define_custom_prompts() -> CustomPromptsDict:
     system_message_template += """
     When answering use markdown.
     Use markdown code blocks for code snippets.
+    For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`
     Answer in a concise and clear manner.
     Use the following pieces of context from files provided by the user to answer the users.
     Answer in the same language as the user question.
@@ -92,6 +93,7 @@ def _define_custom_prompts() -> CustomPromptsDict:
         f"Your name is Quivr. You're a helpful assistant. Today's date is {today_date}."
     )
     system_message_template += """
+    When answering use markdown. For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`
     If not None, also follow these user instructions when answering: {custom_instructions}
     """
 
