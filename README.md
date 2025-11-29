@@ -1,160 +1,333 @@
-# Quivr - Your Second Brain, Empowered by Generative AI
+# Quivr for Moodle - RAG Backend für Schulen
 
-<div align="center">
-    <img src="./logo.png" alt="Quivr-logo" width="31%"  style="border-radius: 50%; padding-bottom: 20px"/>
-</div>
+Ein Fork von [QuivrHQ/quivr](https://github.com/QuivrHQ/quivr), optimiert für die Integration mit Moodle-Lernplattformen. Ermöglicht Schulen, KI-gestützte Wissensdatenbanken (Brains) zu erstellen und diese in Moodle-Kursen bereitzustellen.
 
-[![Discord Follow](https://dcbadge.vercel.app/api/server/HUpRgp2HG8?style=flat)](https://discord.gg/HUpRgp2HG8)
-[![GitHub Repo stars](https://img.shields.io/github/stars/quivrhq/quivr?style=social)](https://github.com/quivrhq/quivr)
-[![Twitter Follow](https://img.shields.io/twitter/follow/StanGirard?style=social)](https://twitter.com/_StanGirard)
+## Übersicht
 
-Quivr, your second brain, utilizes the power of GenerativeAI to be your personal assistant ! Think of it as Obsidian, but turbocharged with AI capabilities.
+Quivr ist eine RAG-Plattform (Retrieval-Augmented Generation), die es ermöglicht, Dokumente hochzuladen und einen KI-Chatbot zu erstellen, der Fragen basierend auf diesen Dokumenten beantwortet. Dieser Fork erweitert Quivr um spezielle Features für den Schulbetrieb:
 
-[Roadmap here](https://docs.quivr.app/docs/roadmap)
+- **Scoped Token System**: Sichere, zeitlich begrenzte Tokens für Moodle-Integration
+- **Moodle-Sync**: Synchronisation von Moodle-Kursmaterialien als Knowledge Base
+- **Vereinfachte API**: Optimierte Endpunkte für das Moodle-Plugin
+- **Konfigurierbare Prompts**: Anpassbare Systemanweisungen für pädagogische Kontexte
 
-## Key Features 🎯
+**Zusammenspiel mit Moodle:**
+```
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│                 │         │                 │         │                 │
+│  Moodle Plugin  │◄───────►│  Quivr Backend  │◄───────►│  LLM Provider   │
+│  (Frontend)     │  Token  │  (Dieses Repo)  │  API    │  (OpenAI etc.)  │
+│                 │         │                 │         │                 │
+└─────────────────┘         └─────────────────┘         └─────────────────┘
+```
 
-- **Fast and Efficient**: Designed with speed and efficiency at its core. Quivr ensures rapid access to your data.
-- **Secure**: Your data, your control. Always.
-- **OS Compatible**: Ubuntu 20 or newer.
-- **File Compatibility**: Text, Markdown, PDF, Powerpoint, Excel, CSV, Word, Audio, Video
-- **Open Source**: Freedom is beautiful, and so is Quivr. Open source and free to use.
-- **Public/Private**: Share your brains with your users via a public link, or keep them private.
-- **Offline Mode**: Quivr works offline, so you can access your data anytime, anywhere.
+## Features
 
-## Demo Highlight 🎥
+### Original Quivr Features
+- **Dokumentenverarbeitung**: PDF, Word, Excel, PowerPoint, Markdown, Text, Audio, Video
+- **RAG-Pipeline**: Retrieval-Augmented Generation mit Vektordatenbank
+- **Multi-LLM Support**: OpenAI, Anthropic, Mistral, Groq, Ollama (lokal)
+- **Brains**: Getrennte Wissensdatenbanken für verschiedene Themenbereiche
+- **Streaming Responses**: Echtzeit-Antworten während der Generierung
 
-https://github.com/quivrhq/quivr/assets/19614572/a6463b73-76c7-4bc0-978d-70562dca71f5
+### Fork-Erweiterungen für Moodle
+- **`/chat/token` Endpoint**: Erstellt brain-spezifische, zeitlich begrenzte JWT-Tokens
+- **Moodle OAuth Sync**: Automatische Synchronisation von Kursmaterialien
+- **Vereinfachte Benutzerführung**: Optimiert für Lehrkräfte ohne technisches Vorwissen
+- **Deutsche Lokalisierung**: Prompts und UI-Texte auf Deutsch
+- **AsciiMath Support**: Mathematische Formeln in Antworten
 
-## Getting Started 🚀
+## Voraussetzungen
 
-You can deploy Quivr to Porter Cloud with one-click:
+- **Docker & Docker Compose**
+- **Supabase CLI** ([Installation](https://supabase.com/docs/guides/cli/getting-started))
+- **LLM API Key** (OpenAI, Anthropic, oder lokales Ollama)
+- **8 GB RAM** (minimum für lokale Entwicklung)
+- **Ubuntu 20.04+** oder **Windows mit WSL2**
 
-<a href="https://cloud.porter.run/addons/new?addon_name=quivr" target="_blank">
-  <img src="https://mintlify.s3-us-west-1.amazonaws.com/porter/images/deploying-applications/deploy-to-porter.svg" alt="Deploy to Porter" style="width: 150px;">
-</a>
+## Schnellstart
 
+### 1. Repository klonen
 
-If you would like to deploy locally, follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
+```bash
+git clone https://github.com/sebastian-schluricke/quivr-for-moodle.git
+cd quivr-for-moodle
+git checkout develop
+```
 
-You can find everything on the [documentation](https://docs.quivr.app/).
+### 2. Umgebungsvariablen konfigurieren
 
-### Prerequisites 📋
+```bash
+cp .env.example .env
+```
 
-Ensure you have the following installed:
+Bearbeite `.env` und setze mindestens:
 
-- Docker
-- Docker Compose
+```bash
+# LLM Provider (mindestens einer erforderlich)
+OPENAI_API_KEY=sk-...
 
-### 60 seconds Installation 💽
+# Oder für lokales Ollama:
+# OLLAMA_API_BASE_URL=http://host.docker.internal:11434
 
-You can find the installation video [here](https://www.youtube.com/watch?v=cXBa6dZJN48).
+# JWT Secret (wichtig für Produktivbetrieb!)
+JWT_SECRET_KEY=ein-sehr-langes-zufaelliges-geheimnis-mindestens-32-zeichen
+```
 
-- **Step 0**: Supabase CLI
+### 3. Supabase starten
 
-  Follow the instructions [here](https://supabase.com/docs/guides/cli/getting-started) to install the Supabase CLI that is required.
+```bash
+cd backend
+supabase start
+```
 
-  ```bash
-  supabase -v # Check that the installation worked
-  ```
+Notiere die Ausgabe mit den Supabase-URLs und Keys.
 
+### 4. Anwendung starten
 
-- **Step 1**: Clone the repository:
+**Mit Docker (empfohlen für Produktion):**
+```bash
+docker compose pull
+docker compose up -d
+```
 
-  ```bash
-  git clone https://github.com/quivrhq/quivr.git && cd quivr
-  ```
+**Für Entwicklung (ohne Docker):**
+```bash
+cd backend/api
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+python -m uvicorn quivr_api.main:app --host 0.0.0.0 --port 5050 --reload
+```
 
-- **Step 2**: Copy the `.env.example` files
+### 5. Zugriff
 
-  ```bash
-  cp .env.example .env
-  ```
+- **API**: http://localhost:5050
+- **API Docs (Swagger)**: http://localhost:5050/docs
+- **Supabase Studio**: http://localhost:54323
+- **Frontend** (optional): http://localhost:3000
 
-- **Step 3**: Update the `.env` files
+### 6. Ersten Benutzer anlegen
 
-  ```bash
-  vim .env # or emacs or vscode or nano
-  ```
+```bash
+# Im Supabase Studio (http://localhost:54323)
+# → Authentication → Users → Add user
+# Email: admin@ihre-schule.de
+# Password: (sicheres Passwort)
+```
 
-  Update **OPENAI_API_KEY** in the `.env` file.
+Oder per SQL in Supabase Studio → SQL Editor:
+```sql
+INSERT INTO auth.users (email, encrypted_password, email_confirmed_at, role)
+VALUES ('admin@ihre-schule.de', crypt('IhrPasswort', gen_salt('bf')), now(), 'authenticated');
+```
 
-  You just need to update the `OPENAI_API_KEY` variable in the `.env` file. You can get your API key [here](https://platform.openai.com/api-keys). You need to create an account first. And put your credit card information. Don't worry, you won't be charged unless you use the API. You can find more information about the pricing [here](https://openai.com/pricing/).
+## Konfiguration
 
+### Wichtige Umgebungsvariablen
 
-- **Step 4**: Launch the project
+| Variable | Beschreibung | Beispiel |
+|----------|--------------|----------|
+| `OPENAI_API_KEY` | OpenAI API Key | `sk-...` |
+| `JWT_SECRET_KEY` | Secret für JWT Token | Min. 32 Zeichen |
+| `SUPABASE_URL` | Supabase URL | `http://localhost:54321` |
+| `SUPABASE_SERVICE_KEY` | Supabase Service Key | Von `supabase start` |
+| `BACKEND_URL` | Öffentliche Backend URL | `https://quivr.ihre-schule.de` |
+| `AUTHENTICATE` | Authentifizierung aktiv | `true` |
 
-  ```bash
-  cd backend && supabase start
-  ```
-  and then 
-  ```bash
-  cd ../
-  docker compose pull
-  docker compose up
-  ```
+### LLM-Modell konfigurieren
 
-  If you have a Mac, go to Docker Desktop > Settings > General and check that the "file sharing implementation" is set to `VirtioFS`.
+Bearbeite `backend/api/config/chat_llm_config.yaml`:
 
-  If you are a developer, you can run the project in development mode with the following command: `docker compose -f docker-compose.dev.yml up --build`
+```yaml
+model: gpt-4o-mini          # oder gpt-4o, claude-3-sonnet, etc.
+max_tokens: 2000
+temperature: 0.7
+```
 
-- **Step 5**: Login to the app
+### Prompts anpassen
 
-  You can now sign in to the app with `admin@quivr.app` & `admin`. You can access the app at [http://localhost:3000/login](http://localhost:3000/login).
+Bearbeite `backend/core/quivr_core/prompts.py` für schulspezifische Anweisungen:
 
-  You can access Quivr backend API at [http://localhost:5050/docs](http://localhost:5050/docs)
+```python
+SYSTEM_PROMPT = """Du bist ein hilfreicher Lernassistent für Schüler.
+Antworte immer auf Deutsch und in einer für Schüler verständlichen Sprache.
+Verwende Markdown für Formatierung und LaTeX für mathematische Formeln."""
+```
 
-  You can access supabase at [http://localhost:54323](http://localhost:54323)
+## API-Endpunkte für Moodle
 
-## Updating Quivr 🚀
+### POST /chat/token
+Erstellt einen zeitlich begrenzten, brain-spezifischen Token.
 
-- **Step 1**: Pull the latest changes
+**Request:**
+```bash
+curl -X POST https://quivr.ihre-schule.de/chat/token \
+  -H "Authorization: Bearer MASTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"brain_id": "uuid-des-brains", "ttl_minutes": 10}'
+```
 
-  ```bash
-  git pull
-  ```
+**Response:**
+```json
+{
+  "token": "eyJ...",
+  "expires_at": "2024-01-15T10:30:00Z"
+}
+```
 
-- **Step 2**: Update the migration
+### GET /brains/
+Listet alle verfügbaren Brains.
 
-  ```bash
-  supabase migration up
-  ```
+### POST /chat
+Erstellt eine neue Chat-Session.
 
+### POST /chat/{chat_id}/question/stream
+Sendet eine Frage und erhält Streaming-Antwort.
 
-## Contributors ✨
+## Deployment für Produktion
 
-Thanks go to these wonderful people:
-<a href="https://github.com/quivrhq/quivr/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=quivrhq/quivr" />
-</a>
+### Mit Docker Compose
 
-## Contribute 🤝
+```bash
+# .env für Produktion anpassen
+vim .env
 
-Did you get a pull request? Open it, and we'll review it as soon as possible. Check out our project board [here](https://github.com/users/StanGirard/projects/5) to see what we're currently focused on, and feel free to bring your fresh ideas to the table!
+# SSL/TLS mit Traefik oder nginx-proxy empfohlen
+docker compose -f docker-compose.yml up -d
+```
 
-- [Open Issues](https://github.com/quivrhq/quivr/issues)
-- [Open Pull Requests](https://github.com/quivrhq/quivr/pulls)
-- [Good First Issues](https://github.com/quivrhq/quivr/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
-- [Frontend Issues](https://github.com/quivrhq/quivr/issues?q=is%3Aopen+is%3Aissue+label%3Afrontend)
-- [Backend Issues](https://github.com/quivrhq/quivr/issues?q=is%3Aopen+is%3Aissue+label%3Abackend)
-- [Translate](https://docs.quivr.app/docs/Developers/contribution/guidelines#translations)
+### Empfohlene Infrastruktur
 
-## Partners ❤️
+```
+┌─────────────────┐
+│   Nginx/Traefik │ ← SSL Termination
+│   (Reverse Proxy)│
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+┌───▼───┐ ┌───▼───┐
+│ Quivr │ │Quivr  │
+│Backend│ │Worker │
+└───┬───┘ └───┬───┘
+    │         │
+┌───▼─────────▼───┐
+│    Supabase     │
+│  (PostgreSQL +  │
+│   Vector Store) │
+└─────────────────┘
+```
 
-This project would not be possible without the support of our partners. Thank you for your support!
+### Sicherheitshinweise
 
+1. **JWT_SECRET_KEY**: Verwende ein langes, zufälliges Secret (mindestens 32 Zeichen)
+2. **HTTPS**: Immer SSL/TLS in Produktion verwenden
+3. **Firewall**: Nur Port 443 (HTTPS) nach außen öffnen
+4. **Supabase**: Nicht direkt erreichbar machen
+5. **API Keys**: Niemals in Git committen
 
-<a href="https://ycombinator.com/">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Y_Combinator_logo.svg/1200px-Y_Combinator_logo.svg.png" alt="YCombinator" style="padding: 10px" width="70px">
-</a>
-<a href="https://www.theodo.fr/">
-  <img src="https://avatars.githubusercontent.com/u/332041?s=200&v=4" alt="Theodo" style="padding: 10px" width="70px">
-</a>
+## Entwicklung
 
-## License 📄
+### Projektstruktur
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details
+```
+quivr-for-moodle/
+├── backend/
+│   ├── api/                    # FastAPI Backend
+│   │   └── quivr_api/
+│   │       ├── modules/
+│   │       │   ├── brain/      # Brain Management
+│   │       │   ├── chat/       # Chat Sessions
+│   │       │   ├── chat_token/ # Moodle Token System (Fork)
+│   │       │   ├── knowledge/  # Document Management
+│   │       │   └── sync/       # Moodle Sync (Fork)
+│   │       └── main.py
+│   ├── core/                   # RAG Core Library
+│   │   └── quivr_core/
+│   │       ├── prompts.py      # System Prompts
+│   │       └── quivr_rag.py    # RAG Pipeline
+│   └── worker/                 # Celery Worker
+├── frontend/                   # Next.js Frontend (optional)
+├── supabase/                   # Database Migrations
+├── docker-compose.yml
+└── .env.example
+```
 
-## Stars History 📈
+### Lokale Entwicklung ohne Docker
 
-[![Star History Chart](https://api.star-history.com/svg?repos=quivrhq/quivr&type=Timeline)](https://star-history.com/#quivrhq/quivr&Timeline)
+```bash
+# Backend
+cd backend/api
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+uvicorn quivr_api.main:app --reload --port 5050
+
+# Worker (separates Terminal)
+cd backend/worker
+celery -A quivr_worker worker -l info
+```
+
+### Tests ausführen
+
+```bash
+cd backend
+pytest api/tests/ -v
+pytest core/tests/ -v
+```
+
+## Fehlerbehebung
+
+### Supabase startet nicht
+```bash
+supabase stop
+supabase start
+```
+
+### Docker Speicherprobleme
+```bash
+docker system prune -a
+# Mehr RAM für Docker in Docker Desktop zuweisen
+```
+
+### API Key funktioniert nicht
+- Prüfe ob der Key in Supabase → api_keys Tabelle existiert
+- Prüfe ob der User dem Brain zugeordnet ist
+
+### Chat-Token abgelaufen
+- Moodle-Plugin holt automatisch neuen Token
+- TTL in `get_token.php` anpassen (Standard: 10 Minuten)
+
+## Updates vom Original-Quivr
+
+```bash
+# Upstream hinzufügen (einmalig)
+git remote add upstream https://github.com/QuivrHQ/quivr.git
+
+# Updates holen
+git fetch upstream
+git checkout develop
+git merge upstream/main  # Achtung: Manuelle Konfliktlösung nötig
+```
+
+## Lizenz
+
+Apache License 2.0 - siehe [LICENSE](LICENSE)
+
+## Mitwirken
+
+1. Fork erstellen
+2. Feature-Branch: `git checkout -b feature/meine-funktion`
+3. Änderungen committen
+4. Push: `git push origin feature/meine-funktion`
+5. Pull Request erstellen
+
+## Verwandte Projekte
+
+- [quivr-moodle-plugin](https://github.com/sebastian-schluricke/quivr-moodle-plugin) - Moodle Activity Plugin
+- [QuivrHQ/quivr](https://github.com/QuivrHQ/quivr) - Original Quivr Projekt
+
+## Support
+
+- [GitHub Issues](https://github.com/sebastian-schluricke/quivr-for-moodle/issues)
