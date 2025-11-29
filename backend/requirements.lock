@@ -694,6 +694,8 @@ pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32'
     # via ipython
 pgvector==0.3.2
     # via quivr-api
+html2text==2024.2.26
+    # via quivr-api
 pi-heif==0.18.0
     # via unstructured
 pikepdf==9.1.1
