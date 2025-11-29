@@ -1,11 +1,16 @@
 #!/bin/bash
 # Build and push Docker images to Docker Hub
 # Usage: ./build-and-push.sh [backend|frontend|all] [--login]
+#
+# Configuration via environment variables:
+#   DOCKER_USER - Docker Hub username (required)
+#   VERSION     - Image tag (default: latest)
 
 set -e
 
-DOCKER_USER="sebastianschluricke"
-VERSION="latest"
+# Configuration - set DOCKER_USER in your environment or .env file
+DOCKER_USER="${DOCKER_USER:-}"
+VERSION="${VERSION:-latest}"
 DOCKER_CONFIG_DIR="$HOME/.docker-quivr"
 
 # Colors for output
@@ -14,9 +19,18 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Check if DOCKER_USER is set
+if [ -z "$DOCKER_USER" ]; then
+    echo -e "${RED}Error: DOCKER_USER environment variable is not set.${NC}"
+    echo -e "${YELLOW}Please set it before running this script:${NC}"
+    echo -e "  export DOCKER_USER=yourdockerhubuser"
+    exit 1
+fi
+
 echo -e "${YELLOW}========================================${NC}"
-echo -e "${YELLOW}  Quivr ESFL Docker Build & Push${NC}"
+echo -e "${YELLOW}  Quivr Docker Build & Push${NC}"
 echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}  Docker User: ${DOCKER_USER}${NC}"
 echo -e "${YELLOW}  Using config: ${DOCKER_CONFIG_DIR}${NC}"
 echo -e "${YELLOW}========================================${NC}"
 
