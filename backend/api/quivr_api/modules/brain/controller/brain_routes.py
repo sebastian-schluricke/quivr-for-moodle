@@ -128,6 +128,7 @@ async def retrieve_brain_by_id(
 @brain_router.post("/brains/", dependencies=[Depends(AuthBearer())], tags=["Brain"])
 async def create_new_brain(
     brain: CreateBrainProperties,
+    model_service: ModelServiceDep,
     request: Request,
     current_user: UserIdentity = Depends(get_current_user),
 ):
@@ -144,6 +145,13 @@ async def create_new_brain(
             status_code=429,
             detail=f"Maximum number of brains reached ({user_settings.get('max_brains', 5)}).",
         )
+
+    # Set default model from database if not specified
+    if brain.model is None:
+        default_model = await model_service.get_default_model()
+        if default_model:
+            brain.model = default_model.name
+
     maybe_send_telemetry("create_brain", {"brain_name": brain.name}, request)
     new_brain = brain_service.create_brain(
         brain=brain,

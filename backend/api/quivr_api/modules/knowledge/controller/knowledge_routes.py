@@ -22,6 +22,7 @@ from quivr_api.modules.knowledge.service.knowledge_exceptions import (
 )
 from quivr_api.modules.knowledge.service.knowledge_service import KnowledgeService
 from quivr_api.modules.upload.service.generate_file_signed_url import (
+    SignedUrlGenerationError,
     generate_file_signed_url,
 )
 from quivr_api.modules.user.entity.user_identity import UserIdentity
@@ -95,13 +96,15 @@ async def generate_signed_url_endpoint(
 
     knowledge = await knowledge_service.get_knowledge(knowledge_id)
 
-    if len(knowledge.brains) == 0:
+    # Use awaitable_attrs for async lazy-loading of relationship
+    brains = await knowledge.awaitable_attrs.brains
+    if len(brains) == 0:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="knowledge not associated with brains yet.",
         )
 
-    brain_id = knowledge.brains[0]["brain_id"]
+    brain_id = brains[0].brain_id
 
     validate_brain_authorization(brain_id=brain_id, user_id=current_user.id)
 
@@ -112,9 +115,15 @@ async def generate_signed_url_endpoint(
         )
 
     file_path_in_storage = f"{brain_id}/{knowledge.file_name}"
-    file_signed_url = generate_file_signed_url(file_path_in_storage)
-
-    return file_signed_url
+    try:
+        file_signed_url = generate_file_signed_url(file_path_in_storage)
+        return file_signed_url
+    except SignedUrlGenerationError as e:
+        logger.error(f"Failed to generate signed URL for knowledge {knowledge_id}: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Could not generate download URL for file. The file may not exist in storage.",
+        )
 
 
 @knowledge_router.post(

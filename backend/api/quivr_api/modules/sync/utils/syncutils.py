@@ -169,8 +169,6 @@ class SyncUtils:
         brain_id = sync_active.brain_id
         source, source_link = self.sync_cloud.name, file.web_view_link
         downloaded_file = await self.download_file(file, current_user)
-        storage_path = f"{brain_id}/{downloaded_file.file_name}"
-        exists_in_storage = check_file_exists(str(brain_id), file.name)
 
         if downloaded_file.extension not in [
             ".pdf",
@@ -184,7 +182,10 @@ class SyncUtils:
         ]:
             raise ValueError(f"Incompatible file extension for {downloaded_file}")
 
-        storage_path = sanitize_filename(storage_path)
+        # Sanitize only the filename part, not the brain_id path component
+        sanitized_filename = sanitize_filename(downloaded_file.file_name)
+        storage_path = f"{brain_id}/{sanitized_filename}"
+        exists_in_storage = check_file_exists(str(brain_id), sanitized_filename)
 
         response = await upload_file_storage(
             downloaded_file.file_data,

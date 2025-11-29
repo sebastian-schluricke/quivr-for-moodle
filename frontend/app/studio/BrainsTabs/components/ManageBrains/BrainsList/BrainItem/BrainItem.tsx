@@ -129,7 +129,7 @@ export const BrainItem = ({ brain, even }: BrainItemProps): JSX.Element => {
         <div className={styles.model}>
           <span className={styles.title}>Model:</span>
           <span className={styles.model_type}>
-            {fetchedBrain?.model ?? "gpt-3.5-turbo-0125"}
+            {fetchedBrain?.model ?? "Loading..."}
           </span>
         </div>
 
