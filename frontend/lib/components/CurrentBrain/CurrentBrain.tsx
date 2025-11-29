@@ -11,7 +11,7 @@ import { LoaderIcon } from "../ui/LoaderIcon/LoaderIcon";
 
 interface CurrentBrainProps {
   allowingRemoveBrain: boolean;
-  remainingCredits: number | null;
+  remainingCredits?: number | null;
   isNewBrain?: boolean;
 }
 
@@ -77,7 +77,6 @@ const ProcessingNotification = ({
 
 export const CurrentBrain = ({
   allowingRemoveBrain,
-  remainingCredits,
   isNewBrain,
 }: CurrentBrainProps): JSX.Element => {
   const { currentBrain, setCurrentBrainId } = useBrainContext();
@@ -86,16 +85,6 @@ export const CurrentBrain = ({
   const removeCurrentBrain = (): void => {
     setCurrentBrainId(null);
   };
-
-  if (remainingCredits === 0) {
-    return (
-      <div className={styles.no_credits_left}>
-        <span>
-          You’ve run out of credits! Upgrade your plan now to continue chatting.
-        </span>
-      </div>
-    );
-  }
 
   if (!currentBrain) {
     return <></>;

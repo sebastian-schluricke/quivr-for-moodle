@@ -6,7 +6,6 @@ import { useChatInput } from "@/app/chat/[chatId]/components/ActionsBar/componen
 import { useChat } from "@/app/chat/[chatId]/hooks/useChat";
 import { useChatContext } from "@/lib/context";
 import { useBrainContext } from "@/lib/context/BrainProvider/hooks/useBrainContext";
-import { useUserSettingsContext } from "@/lib/context/UserSettingsProvider/hooks/useUserSettingsContext";
 
 import styles from "./SearchBar.module.scss";
 
@@ -27,7 +26,6 @@ export const SearchBar = ({
   const { setMessages } = useChatContext();
   const { addQuestion } = useChat();
   const { currentBrain, setCurrentBrainId } = useBrainContext();
-  const { remainingCredits } = useUserSettingsContext();
 
   useEffect(() => {
     setCurrentBrainId(null);
@@ -42,7 +40,7 @@ export const SearchBar = ({
   }, [currentBrain]);
 
   const submit = async (): Promise<void> => {
-    if (!!remainingCredits && !!currentBrain && !searching) {
+    if (!!currentBrain && !searching) {
       setSearching(true);
       setMessages([]);
       try {
@@ -66,13 +64,10 @@ export const SearchBar = ({
     >
       <CurrentBrain
         allowingRemoveBrain={true}
-        remainingCredits={remainingCredits}
         isNewBrain={newBrain}
       />
       <div
-        className={`${styles.editor_wrapper} ${
-          !remainingCredits ? styles.disabled : ""
-        } ${currentBrain ? styles.current : ""}`}
+        className={`${styles.editor_wrapper} ${currentBrain ? styles.current : ""}`}
       >
         <Editor
           message={message}
@@ -85,12 +80,8 @@ export const SearchBar = ({
         ) : (
           <LuSearch
             className={`
-          ${styles.search_icon} 
-          ${
-            isDisabled || !remainingCredits || !currentBrain
-              ? styles.disabled
-              : ""
-          }
+          ${styles.search_icon}
+          ${isDisabled || !currentBrain ? styles.disabled : ""}
           `}
             onClick={() => void submit()}
           />

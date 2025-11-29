@@ -68,31 +68,19 @@ async def find_model_and_generate_metadata(
 
 
 def update_user_usage(usage: UserUsage, user_settings, cost: int = 100):
-    """Checks the user requests limit.
-    It checks the user requests limit and raises an exception if the user has reached the limit.
-    By default, the user has a limit of 100 requests per month. The limit can be increased by upgrading the plan.
+    """Tracks user usage without enforcing limits.
+
+    Previously this function would raise an HTTPException if the user exceeded
+    their monthly chat credit limit. Credit limits have been disabled.
 
     Args:
-        user (UserIdentity): User object
-        model (str): Model name for which the user is making the request
-
-    Raises:
-        HTTPException: Raises a 429 error if the user has reached the limit.
+        usage (UserUsage): User usage object
+        user_settings: User settings dict
+        cost (int): Cost of the request (default 100)
     """
-
     date = time.strftime("%Y%m%d")
-
-    monthly_chat_credit = user_settings.get("monthly_chat_credit", 100)
-    montly_usage = usage.get_user_monthly_usage(date)
-
-    if int(montly_usage + cost) > int(monthly_chat_credit):
-        raise HTTPException(
-            status_code=429,  # pyright: ignore reportPrivateUsage=none
-            detail=f"You have reached your monthly chat limit of {monthly_chat_credit} requests per months. Please upgrade your plan to increase your monthly chat limit.",
-        )
-    else:
-        usage.handle_increment_user_request_count(date, cost)
-        pass
+    # Track usage for statistics but don't enforce limits
+    usage.handle_increment_user_request_count(date, cost)
 
 
 async def check_and_update_user_usage(
