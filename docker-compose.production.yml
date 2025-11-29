@@ -1,61 +1,34 @@
-services:
-  frontend:
-    image: quivr-frontend-prebuilt
-    pull_policy: never
-    environment:
-      - NODE_ENV=production
-      - NODE_OPTIONS=--max-old-space-size=4096
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - NODE_OPTIONS=--max-old-space-size=4096
-        - NEXT_PUBLIC_ENV=local
-        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
-        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        - NEXT_PUBLIC_CMS_URL=${NEXT_PUBLIC_CMS_URL}
-        - NEXT_PUBLIC_FRONTEND_URL=${NEXT_PUBLIC_FRONTEND_URL}
-        - NEXT_PUBLIC_AUTH_MODES=${NEXT_PUBLIC_AUTH_MODES}
-    container_name: web
-    depends_on:
-      - backend-api
-    restart: always
-#    ports:
-#      - 3000:3000
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.quivr-frontend.rule=Host(`sb.esfl.io`)"
-      - "traefik.http.routers.quivr-frontend.entrypoints=websecure"
-      - "traefik.http.routers.quivr-frontend.tls.certresolver=myresolver"
-      - "traefik.http.services.quivr-frontend.loadbalancer.server.port=3000"
-#      - "traefik.http.middlewares.csp.headers.contentSecurityPolicy=script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sb.esfl.io https://chat.afasteryou.com"
-    networks:
-      - supabase_network_secondbrain
+# Docker Compose for Production with Traefik
+#
+# Required environment variables (in .env or shell):
+#   QUIVR_DOMAIN       - Domain for Quivr API (e.g., quivr.ihre-schule.de)
+#   DOCKER_IMAGE_TAG   - Docker image tag (default: latest)
+#   DOCKER_REGISTRY    - Docker registry/user (e.g., yourusername)
+#
+# Optional:
+#   FRONTEND_DOMAIN    - Domain for frontend (if different from API)
+#
+# Usage:
+#   export QUIVR_DOMAIN=quivr.ihre-schule.de
+#   export DOCKER_REGISTRY=yourdockerhubuser
+#   docker compose -f docker-compose.production.yml up -d
 
+services:
   backend-api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    #image: stangirard/quivr-backend-prebuilt:latest
-    #pull_policy: if_not_present
+    image: ${DOCKER_REGISTRY:-quivr}/quivr-backend:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     container_name: backend-api
-    volumes:
-      - ./backend/api/quivr_api/middlewares:/app/api/quivr_api/middlewares
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
       test: [ "CMD", "curl", "http://localhost:5050/healthz" ]
     command: >
-      /bin/bash -c "python -m uvicorn quivr_api.main:app --host 0.0.0.0 --log-level info --reload --port 5050 --loop uvloop"
+      /bin/bash -c "python -m uvicorn quivr_api.main:app --host 0.0.0.0 --log-level info --port 5050 --loop uvloop"
     restart: always
-#    ports:
-#      - 5050:5050
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.quivr-backend.rule=Host(`api.quivr.esfl.io`)"
+      - "traefik.http.routers.quivr-backend.rule=Host(`${QUIVR_DOMAIN}`)"
       - "traefik.http.routers.quivr-backend.entrypoints=websecure"
       - "traefik.http.routers.quivr-backend.tls.certresolver=myresolver"
       - "traefik.http.services.quivr-backend.loadbalancer.server.port=5050"
@@ -63,8 +36,7 @@ services:
       - supabase_network_secondbrain
 
   worker:
-    pull_policy: if_not_present
-    image: stangirard/quivr-backend-prebuilt:latest
+    image: ${DOCKER_REGISTRY:-quivr}/quivr-backend:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     container_name: worker
@@ -79,8 +51,7 @@ services:
       - supabase_network_secondbrain
 
   notifier:
-    pull_policy: never
-    image: stangirard/quivr-backend-prebuilt:latest
+    image: ${DOCKER_REGISTRY:-quivr}/quivr-backend:${DOCKER_IMAGE_TAG:-latest}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
@@ -96,8 +67,7 @@ services:
       - supabase_network_secondbrain
 
   beat:
-    image: stangirard/quivr-backend-prebuilt:latest
-    pull_policy: if_not_present
+    image: ${DOCKER_REGISTRY:-quivr}/quivr-backend:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     container_name: beat
@@ -112,8 +82,7 @@ services:
       - supabase_network_secondbrain
 
   flower:
-    image: stangirard/quivr-backend-prebuilt:latest
-    pull_policy: if_not_present
+    image: ${DOCKER_REGISTRY:-quivr}/quivr-backend:${DOCKER_IMAGE_TAG:-latest}
     env_file:
       - .env
     container_name: flower
@@ -126,17 +95,13 @@ services:
       - redis
       - worker
       - beat
- #   ports:
- #     - 5555:5555
     networks:
       - supabase_network_secondbrain
 
   redis:
-    image: redis:latest@sha256:a7cee7c8178ff9b5297cb109e6240f5072cdaaafd775ce6b586c3c704b06458e
+    image: redis:latest
     container_name: redis
     restart: always
-#    ports:
-#      - 6379:6379
     networks:
       - supabase_network_secondbrain
 
