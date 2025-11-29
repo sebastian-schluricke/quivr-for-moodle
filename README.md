@@ -9,150 +9,212 @@ Quivr ist eine RAG-Plattform (Retrieval-Augmented Generation), die es ermöglich
 - **Scoped Token System**: Sichere, zeitlich begrenzte Tokens für Moodle-Integration
 - **Moodle-Sync**: Synchronisation von Moodle-Kursmaterialien als Knowledge Base
 - **Vereinfachte API**: Optimierte Endpunkte für das Moodle-Plugin
-- **Konfigurierbare Prompts**: Anpassbare Systemanweisungen für pädagogische Kontexte
 
 **Zusammenspiel mit Moodle:**
 ```
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │                 │         │                 │         │                 │
 │  Moodle Plugin  │◄───────►│  Quivr Backend  │◄───────►│  LLM Provider   │
-│  (Frontend)     │  Token  │  (Dieses Repo)  │  API    │  (OpenAI etc.)  │
+│  (Frontend)     │  Token  │  (Dieses Repo)  │  API    │  (OpenAI)       │
 │                 │         │                 │         │                 │
 └─────────────────┘         └─────────────────┘         └─────────────────┘
 ```
 
-## Features
+## Architektur
 
-### Original Quivr Features
-- **Dokumentenverarbeitung**: PDF, Word, Excel, PowerPoint, Markdown, Text, Audio, Video
-- **RAG-Pipeline**: Retrieval-Augmented Generation mit Vektordatenbank
-- **Multi-LLM Support**: OpenAI, Anthropic, Mistral, Groq, Ollama (lokal)
-- **Brains**: Getrennte Wissensdatenbanken für verschiedene Themenbereiche
-- **Streaming Responses**: Echtzeit-Antworten während der Generierung
+Das System besteht aus drei Docker Compose Stacks:
 
-### Fork-Erweiterungen für Moodle
-- **`/chat/token` Endpoint**: Erstellt brain-spezifische, zeitlich begrenzte JWT-Tokens
-- **Moodle OAuth Sync**: Automatische Synchronisation von Kursmaterialien
-- **Vereinfachte Benutzerführung**: Optimiert für Lehrkräfte ohne technisches Vorwissen
-- **Deutsche Lokalisierung**: Prompts und UI-Texte auf Deutsch
-- **AsciiMath Support**: Mathematische Formeln in Antworten
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Server                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐                                               │
+│  │   Traefik    │ ← SSL/HTTPS Termination (Let's Encrypt)       │
+│  │  (Port 443)  │                                               │
+│  └──────┬───────┘                                               │
+│         │                                                       │
+│    ┌────┴────────────────────┬───────────────────────┐          │
+│    │                         │                       │          │
+│    ▼                         ▼                       ▼          │
+│  ┌─────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
+│  │  Supabase   │    │  Quivr Backend  │    │  Quivr Worker   │  │
+│  │  (Kong API) │    │  (FastAPI)      │    │  (Celery)       │  │
+│  │supabase.esfl│    │   quivr.esfl    │    │                 │  │
+│  └──────┬──────┘    └────────┬────────┘    └─────────┬───────┘  │
+│         │                    │                       │          │
+│         └────────────────────┼───────────────────────┘          │
+│                              │                                  │
+│                    ┌─────────▼─────────┐                        │
+│                    │   PostgreSQL      │                        │
+│                    │   (Supabase DB)   │                        │
+│                    │   + pgvector      │                        │
+│                    └───────────────────┘                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Unterstützte LLM-Modelle
+
+Das System unterstützt folgende OpenAI-Modelle:
+
+| Modell | Beschreibung | Empfohlen |
+|--------|--------------|-----------|
+| `gpt-4o-mini` | Schnell, kostengünstig | ✓ Standard |
+| `gpt-4o` | Leistungsstark | Für komplexe Aufgaben |
+| `gpt-4-turbo` | GPT-4 mit großem Context | - |
+| `gpt-3.5-turbo` | Schnell, sehr günstig | Budget-Option |
 
 ## Voraussetzungen
 
-- **Docker & Docker Compose**
-- **Supabase CLI** ([Installation](https://supabase.com/docs/guides/cli/getting-started))
-- **LLM API Key** (OpenAI, Anthropic, oder lokales Ollama)
-- **8 GB RAM** (minimum für lokale Entwicklung)
-- **Ubuntu 20.04+** oder **Windows mit WSL2**
+- **Linux Server** (Ubuntu 22.04 empfohlen)
+- **Docker & Docker Compose** v2.x
+- **Domain mit DNS** (z.B. `quivr.ihre-schule.de`, `supabase.ihre-schule.de`)
+- **OpenAI API Key**
+- **Mindestens 8 GB RAM**, 50 GB Speicher
 
-## Schnellstart
+## Installation
 
-### 1. Repository klonen
+Die Installation erfolgt in drei Schritten:
 
-```bash
-git clone https://github.com/sebastian-schluricke/quivr-for-moodle.git
-cd quivr-for-moodle
-git checkout develop
-```
-
-### 2. Umgebungsvariablen konfigurieren
+### 1. Traefik (Reverse Proxy mit SSL)
 
 ```bash
-cp .env.example .env
-```
+mkdir -p ~/traefik && cd ~/traefik
 
-Bearbeite `.env` und setze mindestens:
+# Docker Network erstellen
+docker network create supabase_network_secondbrain
 
-```bash
-# LLM Provider (mindestens einer erforderlich)
-OPENAI_API_KEY=sk-...
+# docker-compose.yml erstellen
+cat > docker-compose.yml << 'EOF'
+services:
+  traefik:
+    image: "traefik:v2.11"
+    container_name: "traefik"
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=admin@ihre-schule.de"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - supabase_network_secondbrain
 
-# Oder für lokales Ollama:
-# OLLAMA_API_BASE_URL=http://host.docker.internal:11434
+networks:
+  supabase_network_secondbrain:
+    external: true
+EOF
 
-# JWT Secret (wichtig für Produktivbetrieb!)
-JWT_SECRET_KEY=ein-sehr-langes-zufaelliges-geheimnis-mindestens-32-zeichen
-```
-
-### 3. Supabase starten
-
-```bash
-cd backend
-supabase start
-```
-
-Notiere die Ausgabe mit den Supabase-URLs und Keys.
-
-### 4. Anwendung starten
-
-**Mit Docker (empfohlen für Produktion):**
-```bash
-docker compose pull
 docker compose up -d
 ```
 
-**Für Entwicklung (ohne Docker):**
-```bash
-cd backend/api
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -e ".[dev]"
-python -m uvicorn quivr_api.main:app --host 0.0.0.0 --port 5050 --reload
-```
-
-### 5. Zugriff
-
-- **API**: http://localhost:5050
-- **API Docs (Swagger)**: http://localhost:5050/docs
-- **Supabase Studio**: http://localhost:54323
-- **Frontend** (optional): http://localhost:3000
-
-### 6. Ersten Benutzer anlegen
+### 2. Supabase (Datenbank & Auth)
 
 ```bash
-# Im Supabase Studio (http://localhost:54323)
-# → Authentication → Users → Add user
-# Email: admin@ihre-schule.de
-# Password: (sicheres Passwort)
+mkdir -p ~/supabase && cd ~/supabase
+git clone https://github.com/supabase/supabase.git --depth 1
+cd supabase/docker
+cp .env.example .env
 ```
 
-Oder per SQL in Supabase Studio → SQL Editor:
-```sql
-INSERT INTO auth.users (email, encrypted_password, email_confirmed_at, role)
-VALUES ('admin@ihre-schule.de', crypt('IhrPasswort', gen_salt('bf')), now(), 'authenticated');
+**.env anpassen:**
+```bash
+# Sichere Passwörter generieren
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -base64 48)
+
+# Keys generieren (siehe Supabase Docs)
+# https://supabase.com/docs/guides/self-hosting/docker
+
+# Domain anpassen
+SUPABASE_PUBLIC_URL=https://supabase.ihre-schule.de
+API_EXTERNAL_URL=https://supabase.ihre-schule.de
 ```
 
-## Konfiguration
+**docker-compose.yml anpassen:**
+- Kong Service: Traefik Labels hinzufügen
+- Network `supabase_network_secondbrain` hinzufügen
+- Ports entfernen (Traefik übernimmt)
 
-### Wichtige Umgebungsvariablen
-
-| Variable | Beschreibung | Beispiel |
-|----------|--------------|----------|
-| `OPENAI_API_KEY` | OpenAI API Key | `sk-...` |
-| `JWT_SECRET_KEY` | Secret für JWT Token | Min. 32 Zeichen |
-| `SUPABASE_URL` | Supabase URL | `http://localhost:54321` |
-| `SUPABASE_SERVICE_KEY` | Supabase Service Key | Von `supabase start` |
-| `BACKEND_URL` | Öffentliche Backend URL | `https://quivr.ihre-schule.de` |
-| `AUTHENTICATE` | Authentifizierung aktiv | `true` |
-
-### LLM-Modell konfigurieren
-
-Bearbeite `backend/api/config/chat_llm_config.yaml`:
-
-```yaml
-model: gpt-4o-mini          # oder gpt-4o, claude-3-sonnet, etc.
-max_tokens: 2000
-temperature: 0.7
+```bash
+docker compose up -d
 ```
 
-### Prompts anpassen
+### 3. Quivr Backend
 
-Bearbeite `backend/core/quivr_core/prompts.py` für schulspezifische Anweisungen:
+```bash
+mkdir -p ~/quivr && cd ~/quivr
+git clone https://github.com/sebastian-schluricke/quivr-for-moodle.git .
+git checkout develop
+cp .env.example .env
+```
 
-```python
-SYSTEM_PROMPT = """Du bist ein hilfreicher Lernassistent für Schüler.
-Antworte immer auf Deutsch und in einer für Schüler verständlichen Sprache.
-Verwende Markdown für Formatierung und LaTeX für mathematische Formeln."""
+**.env anpassen:**
+```bash
+# OpenAI API Key
+OPENAI_API_KEY=sk-...
+
+# Supabase Verbindung (aus Supabase .env)
+SUPABASE_URL=https://supabase.ihre-schule.de
+SUPABASE_SERVICE_KEY=<SERVICE_ROLE_KEY>
+JWT_SECRET_KEY=<JWT_SECRET>
+PG_DATABASE_URL=postgresql://postgres:<POSTGRES_PASSWORD>@supabase-db:5432/postgres
+
+# Backend URL
+BACKEND_URL=https://quivr.ihre-schule.de
+```
+
+**Datenbank-Migrationen ausführen:**
+```bash
+# In Supabase-Container oder via psql
+docker exec -it supabase-db psql -U postgres -d postgres
+
+# SQL-Migrationen aus backend/supabase/migrations/ ausführen
+```
+
+**Quivr starten:**
+```bash
+docker compose up -d
+```
+
+## Umgebungsvariablen
+
+### Erforderliche Variablen (.bashrc oder .env)
+
+```bash
+# Supabase Credentials
+export POSTGRES_PASSWORD="<sicheres-passwort>"
+export JWT_SECRET="<jwt-secret-min-32-zeichen>"
+export ANON_KEY="<supabase-anon-key>"
+export SERVICE_ROLE_KEY="<supabase-service-role-key>"
+export SUPABASE_URL="https://supabase.ihre-schule.de"
+
+# Datenbank URLs
+export PG_DATABASE_URL="postgresql://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres"
+export PG_DATABASE_ASYNC_URL="postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres"
+
+# JWT für Quivr
+export JWT_SECRET_KEY="${JWT_SECRET}"
+export SUPABASE_SERVICE_KEY="${SERVICE_ROLE_KEY}"
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="${ANON_KEY}"
+```
+
+### Supabase Keys generieren
+
+Die Anon und Service Role Keys müssen aus dem JWT Secret generiert werden:
+
+```bash
+# Online Generator: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+# Oder manuell mit jwt.io
 ```
 
 ## API-Endpunkte für Moodle
@@ -160,20 +222,11 @@ Verwende Markdown für Formatierung und LaTeX für mathematische Formeln."""
 ### POST /chat/token
 Erstellt einen zeitlich begrenzten, brain-spezifischen Token.
 
-**Request:**
 ```bash
 curl -X POST https://quivr.ihre-schule.de/chat/token \
   -H "Authorization: Bearer MASTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"brain_id": "uuid-des-brains", "ttl_minutes": 10}'
-```
-
-**Response:**
-```json
-{
-  "token": "eyJ...",
-  "expires_at": "2024-01-15T10:30:00Z"
-}
 ```
 
 ### GET /brains/
@@ -185,51 +238,60 @@ Erstellt eine neue Chat-Session.
 ### POST /chat/{chat_id}/question/stream
 Sendet eine Frage und erhält Streaming-Antwort.
 
-## Deployment für Produktion
+## Wartung
 
-### Mit Docker Compose
+### Logs prüfen
 
 ```bash
-# .env für Produktion anpassen
-vim .env
+# Quivr Backend
+docker logs -f quivr-backend
 
-# SSL/TLS mit Traefik oder nginx-proxy empfohlen
-docker compose -f docker-compose.yml up -d
+# Supabase
+docker logs -f supabase-kong
+docker logs -f supabase-db
 ```
 
-### Empfohlene Infrastruktur
+### Datenbank Backup
 
-```
-┌─────────────────┐
-│   Nginx/Traefik │ ← SSL Termination
-│   (Reverse Proxy)│
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    │         │
-┌───▼───┐ ┌───▼───┐
-│ Quivr │ │Quivr  │
-│Backend│ │Worker │
-└───┬───┘ └───┬───┘
-    │         │
-┌───▼─────────▼───┐
-│    Supabase     │
-│  (PostgreSQL +  │
-│   Vector Store) │
-└─────────────────┘
+```bash
+docker exec supabase-db pg_dump -U postgres postgres > backup_$(date +%Y%m%d).sql
 ```
 
-### Sicherheitshinweise
+### Updates einspielen
 
-1. **JWT_SECRET_KEY**: Verwende ein langes, zufälliges Secret (mindestens 32 Zeichen)
-2. **HTTPS**: Immer SSL/TLS in Produktion verwenden
-3. **Firewall**: Nur Port 443 (HTTPS) nach außen öffnen
-4. **Supabase**: Nicht direkt erreichbar machen
-5. **API Keys**: Niemals in Git committen
+```bash
+cd ~/quivr
+git pull origin develop
+docker compose down
+docker compose build
+docker compose up -d
+```
 
-## Entwicklung
+## Sicherheitshinweise
 
-### Projektstruktur
+1. **Keine Secrets in Git**: `.env` Dateien nie committen
+2. **Starke Passwörter**: Mindestens 32 Zeichen für JWT_SECRET und POSTGRES_PASSWORD
+3. **HTTPS Only**: Traefik erzwingt SSL
+4. **Firewall**: Nur Port 80/443 nach außen öffnen
+5. **Supabase nicht direkt erreichbar**: Nur über Kong/Traefik
+
+## Fehlerbehebung
+
+### Supabase startet nicht
+```bash
+docker compose down -v
+docker compose up -d
+```
+
+### Quivr kann Supabase nicht erreichen
+- Prüfen ob beide im gleichen Docker Network sind
+- DNS-Auflösung testen: `docker exec quivr-backend ping supabase-db`
+
+### Chat-Token funktioniert nicht
+- API Key in Supabase `api_keys` Tabelle prüfen
+- Brain-Zuordnung zum User prüfen
+
+## Projektstruktur
 
 ```
 quivr-for-moodle/
@@ -248,80 +310,14 @@ quivr-for-moodle/
 │   │       ├── prompts.py      # System Prompts
 │   │       └── quivr_rag.py    # RAG Pipeline
 │   └── worker/                 # Celery Worker
-├── frontend/                   # Next.js Frontend (optional)
 ├── supabase/                   # Database Migrations
 ├── docker-compose.yml
 └── .env.example
 ```
 
-### Lokale Entwicklung ohne Docker
-
-```bash
-# Backend
-cd backend/api
-python -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
-uvicorn quivr_api.main:app --reload --port 5050
-
-# Worker (separates Terminal)
-cd backend/worker
-celery -A quivr_worker worker -l info
-```
-
-### Tests ausführen
-
-```bash
-cd backend
-pytest api/tests/ -v
-pytest core/tests/ -v
-```
-
-## Fehlerbehebung
-
-### Supabase startet nicht
-```bash
-supabase stop
-supabase start
-```
-
-### Docker Speicherprobleme
-```bash
-docker system prune -a
-# Mehr RAM für Docker in Docker Desktop zuweisen
-```
-
-### API Key funktioniert nicht
-- Prüfe ob der Key in Supabase → api_keys Tabelle existiert
-- Prüfe ob der User dem Brain zugeordnet ist
-
-### Chat-Token abgelaufen
-- Moodle-Plugin holt automatisch neuen Token
-- TTL in `get_token.php` anpassen (Standard: 10 Minuten)
-
-## Updates vom Original-Quivr
-
-```bash
-# Upstream hinzufügen (einmalig)
-git remote add upstream https://github.com/QuivrHQ/quivr.git
-
-# Updates holen
-git fetch upstream
-git checkout develop
-git merge upstream/main  # Achtung: Manuelle Konfliktlösung nötig
-```
-
 ## Lizenz
 
 Apache License 2.0 - siehe [LICENSE](LICENSE)
-
-## Mitwirken
-
-1. Fork erstellen
-2. Feature-Branch: `git checkout -b feature/meine-funktion`
-3. Änderungen committen
-4. Push: `git push origin feature/meine-funktion`
-5. Pull Request erstellen
 
 ## Verwandte Projekte
 
