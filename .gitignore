@@ -119,15 +119,8 @@ supabase/
 backend/*.sh
 backend/START_SCRIPTS_README.md
 
-# Documentation (local only)
+# Documentation - CLAUDE.md is local only, docs/ is tracked
 CLAUDE.md
-DEVELOPMENT.md
-LOCAL_DEVELOPMENT_SETUP.md
-RUN_CONFIGURATIONS.md
-WINDOWS_SETUP.md
-chat_token_documentation.md
-quivr_api_usage_guide.md
-docs/
 
 # Windows specific
 backend/requirements_windows.txt
