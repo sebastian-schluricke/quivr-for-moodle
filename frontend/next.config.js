@@ -60,11 +60,8 @@ const ContentSecurityPolicy = {
   ],
   "connect-src": [
     "'self'",
-    "https://*.esfl.io",
-    "wss://*.esfl.io",
-    "https://api.quivr.esfl.io",
-    "https://supabase.esfl.io",
-    "wss://supabase.esfl.io",
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
     "*.intercom.io",
     "*.intercomcdn.com",
     "https://api.june.so",
@@ -77,7 +74,9 @@ const ContentSecurityPolicy = {
     "http://localhost:5050",
     "http://localhost:54321",
     "ws://localhost:54321",
+    "wss://localhost:54321",
     "http://host.docker.internal:54321",
+    "http://host.docker.internal:5050",
   ],
   "img-src": [
     "'self'",

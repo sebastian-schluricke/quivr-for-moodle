@@ -1,32 +1,24 @@
-# Usage
-#   Start:          docker compose up
-#   With helpers:   docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
-#   Stop:           docker compose down
-#   Destroy:        docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
+# Supabase Docker Compose for Production
+#
+# Required environment variables (in .env or shell):
+#   SUPABASE_DOMAIN    - Domain for Supabase API (e.g., supabase.your-school.edu)
+#
+# Usage:
+#   # First, create the network and start Traefik:
+#   docker network create supabase_network_secondbrain
+#   docker compose -f docker-compose.traefik.yml up -d
+#
+#   # Then start Supabase:
+#   export SUPABASE_DOMAIN=supabase.your-school.edu
+#   docker compose -f docker-compose.supabase.yml up -d
+#
+# See also:
+#   - docker-compose.traefik.yml for Traefik reverse proxy
+#   - docker-compose.production.yml for Quivr backend
 
 name: supabase
 
 services:
-  traefik:
-    image: "traefik:v2.11"
-    container_name: "traefik"
-    restart: unless-stopped
-    command:
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=cert-hugo@esfl.de"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/letsencrypt"
-    networks:
-      - supabase_network_secondbrain
-
   studio:
     container_name: supabase-studio
     image: supabase/studio:20240729-ce42139
@@ -75,10 +67,10 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.kong.rule=Host(`supabase.esfl.io`)"
+      - "traefik.http.routers.kong.rule=Host(`${SUPABASE_DOMAIN}`)"
       - "traefik.http.routers.kong.entrypoints=websecure"
       - "traefik.http.routers.kong.tls.certresolver=myresolver"
-      - "traefik.http.services.kong.loadbalancer.server.port=8000"  # Hinzugefügt
+      - "traefik.http.services.kong.loadbalancer.server.port=8000"
     # https://unix.stackexchange.com/a/294837
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
 #    ports:

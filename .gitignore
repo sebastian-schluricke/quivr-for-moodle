@@ -130,7 +130,7 @@ test_*.py
 testing/
 
 # Images
-eckener-schule.png
+*.png
 
 # Docker config (separate login for Quivr)
 .docker-quivr/

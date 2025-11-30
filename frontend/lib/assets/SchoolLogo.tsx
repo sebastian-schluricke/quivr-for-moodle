@@ -11,8 +11,8 @@ interface SchoolLogoProps {
  * Configurable school logo component that reads from environment variables.
  *
  * Environment Variables:
- * - NEXT_PUBLIC_SCHOOL_LOGO_PATH: Path to the school logo (default: /eckener-schule-logo.png)
- * - NEXT_PUBLIC_SCHOOL_NAME: Name of the school (default: Eckener-Schule)
+ * - NEXT_PUBLIC_SCHOOL_LOGO_PATH: Path to the school logo (default: /school-logo.png)
+ * - NEXT_PUBLIC_SCHOOL_NAME: Name of the school (default: Quivr)
  *
  * For schools with color-specific logos, you can use:
  * - NEXT_PUBLIC_SCHOOL_LOGO_WHITE: Path to white version
@@ -25,12 +25,12 @@ export const SchoolLogo = ({
   color = "white",
   className = "",
 }: SchoolLogoProps): JSX.Element => {
-  const [src, setSrc] = useState<string>("/eckener-schule-logo.png");
+  const [src, setSrc] = useState<string>("/school-logo.png");
   const [alt, setAlt] = useState<string>("School Logo");
 
   useEffect(() => {
     // Get school name from environment or use default
-    const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME ?? "Eckener-Schule";
+    const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME ?? "Quivr";
     setAlt(`${schoolName} Logo`);
 
     // Check for color-specific logos first
@@ -47,7 +47,7 @@ export const SchoolLogo = ({
       setSrc(colorLogo);
     } else {
       const defaultLogo =
-        process.env.NEXT_PUBLIC_SCHOOL_LOGO_PATH ?? "/eckener-schule-logo.png";
+        process.env.NEXT_PUBLIC_SCHOOL_LOGO_PATH ?? "/school-logo.png";
       setSrc(defaultLogo);
     }
   }, [color]);

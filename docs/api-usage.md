@@ -244,7 +244,7 @@ To create a web UI chat interface that uses the Quivr API's streaming functional
 
 ```javascript
 // Configuration
-const API_URL = "https://sb.esfl.io/api";  // Replace with your Quivr instance URL
+const API_URL = "https://your-quivr-instance.com";  // Replace with your Quivr instance URL
 const API_KEY = "your_api_key";  // Replace with your API key
 const BRAIN_ID = "your_brain_id";  // Replace with your brain ID
 
