@@ -116,8 +116,6 @@ backend/api/venv/
 # Local development
 supabase
 supabase/
-backend/*.sh
-backend/START_SCRIPTS_README.md
 
 # Documentation - CLAUDE.md is local only, docs/ is tracked
 CLAUDE.md
@@ -129,8 +127,9 @@ backend/requirements_windows.txt
 test_*.py
 testing/
 
-# Images
+# Images (except school logo)
 *.png
+!frontend/public/school-logo.png
 
 # Docker config (separate login for Quivr)
 .docker-quivr/

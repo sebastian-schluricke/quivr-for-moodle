@@ -1,28 +1,40 @@
 import Image from "next/image";
-import { useEffect, useState } from "react";
 
 interface QuivrLogoProps {
   size: number;
   color?: "white" | "black" | "primary" | "accent";
 }
 
+const customLogoUrl = process.env.NEXT_PUBLIC_LOGO_URL;
+
 export const QuivrLogo = ({
   size,
   color = "white",
 }: QuivrLogoProps): JSX.Element => {
-  const [src, setSrc] = useState<string>("/logo-white.svg");
+  // If custom logo is set, always use it (ignores color variants)
+  if (customLogoUrl) {
+    const isExternalUrl = customLogoUrl.startsWith("http");
 
-  useEffect(() => {
-    if (color === "primary") {
-      setSrc("/logo-primary.svg");
-    } else if (color === "accent") {
-      setSrc("/logo-accent.svg");
-    } else if (color === "black") {
-      setSrc("/logo-black.svg");
-    } else {
-      setSrc("/logo-white.svg");
-    }
-  }, [color]);
+    return (
+      <Image
+        src={customLogoUrl}
+        alt="Logo"
+        width={size}
+        height={size}
+        unoptimized={isExternalUrl}
+      />
+    );
+  }
 
-  return <Image src={src} alt="Quivr Logo" width={size} height={size} />;
+  // Default Quivr logo with color variants
+  let src = "/logo-white.svg";
+  if (color === "primary") {
+    src = "/logo-primary.svg";
+  } else if (color === "accent") {
+    src = "/logo-accent.svg";
+  } else if (color === "black") {
+    src = "/logo-black.svg";
+  }
+
+  return <Image src={src} alt="Logo" width={size} height={size} />;
 };

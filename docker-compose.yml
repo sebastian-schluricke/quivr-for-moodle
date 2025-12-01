@@ -50,7 +50,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: >
-      /bin/bash -c "python -m celery -A quivr_worker.celery_worker worker -l info"
+      /bin/bash -c "python -m celery -A quivr_worker.celery_worker worker -l info -E"
     restart: always
     depends_on:
       - redis
