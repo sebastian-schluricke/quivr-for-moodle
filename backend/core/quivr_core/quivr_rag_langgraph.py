@@ -210,7 +210,7 @@ class QuivrQARAGLangGraph:
             ) + self.llm_endpoint.count_tokens(ai_message.content)
             if (
                 total_tokens + message_tokens
-                > self.retrieval_config.llm_config.max_output_tokens
+                > self.retrieval_config.llm_config.max_input_tokens
                 or total_pairs >= self.retrieval_config.max_history
             ):
                 break
@@ -284,6 +284,7 @@ class QuivrQARAGLangGraph:
         final_inputs["question"] = user_question
         final_inputs["custom_instructions"] = prompt if prompt else "None"
         final_inputs["files"] = files if files else "None"
+        final_inputs["chat_history"] = state["chat_history"].to_list()
 
         # LLM
         llm = self.llm_endpoint._llm

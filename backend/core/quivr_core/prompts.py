@@ -73,6 +73,7 @@ def _define_custom_prompts() -> CustomPromptsDict:
     RAG_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
         [
             SystemMessagePromptTemplate.from_template(system_message_template),
+            MessagesPlaceholder(variable_name="chat_history"),
             HumanMessagePromptTemplate.from_template(template_answer),
         ]
     )
