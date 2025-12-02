@@ -48,6 +48,19 @@ class ChatHistory:
     def __len__(self):
         return len(self._msgs)
 
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the chat history for use in prompts.
+        Format: alternating Human/AI messages with clear labels.
+        """
+        lines = []
+        for msg in self.get_chat_history():
+            if isinstance(msg.msg, HumanMessage):
+                lines.append(f"Human: {msg.msg.content}")
+            elif isinstance(msg.msg, AIMessage):
+                lines.append(f"AI: {msg.msg.content}")
+        return "\n".join(lines)
+
     def append(
         self, langchain_msg: AIMessage | HumanMessage, metadata: dict[str, Any] = {}
     ):

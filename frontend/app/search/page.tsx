@@ -13,7 +13,6 @@ import { SmallTabs } from "@/lib/components/ui/SmallTabs/SmallTabs";
 import { useBrainContext } from "@/lib/context/BrainProvider/hooks/useBrainContext";
 import { useSupabase } from "@/lib/context/SupabaseProvider";
 import { useUserSettingsContext } from "@/lib/context/UserSettingsProvider/hooks/useUserSettingsContext";
-import { useUserData } from "@/lib/hooks/useUserData";
 import { redirectToLogin } from "@/lib/router/redirectToLogin";
 import { ButtonType } from "@/lib/types/QuivrButton";
 import { Tab } from "@/lib/types/Tab";
@@ -31,11 +30,10 @@ const Search = (): JSX.Element => {
   const pathname = usePathname();
   const { session } = useSupabase();
   const { setIsBrainCreationModalOpened } = useBrainCreationContext();
-  const { userData } = useUserData();
   const { isDarkMode } = useUserSettingsContext();
   const { allBrains } = useBrainContext();
 
-  const [buttons, setButtons] = useState<ButtonType[]>([
+  const buttons: ButtonType[] = [
     {
       label: "Create brain",
       color: "primary",
@@ -43,10 +41,8 @@ const Search = (): JSX.Element => {
         setIsBrainCreationModalOpened(true);
       },
       iconName: "brain",
-      tooltip:
-        "You have reached the maximum number of brains allowed. Please upgrade your plan or delete some brains to create a new one.",
     },
-  ]);
+  ];
 
   const assistantsTabs: Tab[] = [
     {
@@ -75,25 +71,6 @@ const Search = (): JSX.Element => {
       setIsNewBrain(false);
     }, 750);
   };
-
-  useEffect(() => {
-    if (userData) {
-      setButtons((prevButtons) => {
-        return prevButtons.map((button) => {
-          if (button.label === "Create brain") {
-            return {
-              ...button,
-              disabled:
-                userData.max_brains <=
-                allBrains.filter((brain) => brain.brain_type === "doc").length,
-            };
-          }
-
-          return button;
-        });
-      });
-    }
-  }, [userData?.max_brains, allBrains.length]);
 
   useEffect(() => {
     if (session === null) {

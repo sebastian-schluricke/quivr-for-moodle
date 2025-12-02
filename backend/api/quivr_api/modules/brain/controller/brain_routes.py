@@ -133,19 +133,6 @@ async def create_new_brain(
     current_user: UserIdentity = Depends(get_current_user),
 ):
     """Create a new brain for the user."""
-    user_brains = brain_user_service.get_user_brains(current_user.id)
-    user_usage = UserUsage(
-        id=current_user.id,
-        email=current_user.email,
-    )
-    user_settings = user_usage.get_user_settings()
-
-    if len(user_brains) >= user_settings.get("max_brains", 5):
-        raise HTTPException(
-            status_code=429,
-            detail=f"Maximum number of brains reached ({user_settings.get('max_brains', 5)}).",
-        )
-
     # Set default model from database if not specified
     if brain.model is None:
         default_model = await model_service.get_default_model()
