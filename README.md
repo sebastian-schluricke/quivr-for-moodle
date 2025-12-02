@@ -238,6 +238,33 @@ The Anon and Service Role keys must be generated from the JWT Secret:
 # Or manually with jwt.io
 ```
 
+## Moodle Configuration
+
+### Web Service Setup for Course Sync
+
+To allow Quivr to read course contents and sections from Moodle, you need to configure an External Service with specific Web Service functions.
+
+**Site Administration → Server → Web services → External services:**
+
+1. Create a new service (e.g., "Quivr Integration")
+2. Enable the service and set "Authorised users only" if desired
+3. Add the following four functions:
+
+| Function | Description | Required Capabilities |
+|----------|-------------|----------------------|
+| `core_course_get_contents` | Get course contents | `moodle/course:update`, `moodle/course:viewhiddencourses` |
+| `core_course_get_courses` | Return course details | `moodle/course:view`, `moodle/course:update`, `moodle/course:viewhiddencourses` |
+| `core_enrol_get_users_courses` | Get the list of courses where a user is enrolled | `moodle/course:viewparticipants` |
+| `core_webservice_get_site_info` | Return site info / user info / list web service functions | - |
+
+**Site Administration → Server → Web services → Manage tokens:**
+
+1. Create a token for the teacher who will sync the course
+2. The teacher authenticates once with their Moodle username and password
+3. The generated token is used by Quivr to access the course contents
+
+**Note:** The teacher must have the required capabilities listed above for their courses
+
 ## API Endpoints for Moodle
 
 ### POST /chat/token
