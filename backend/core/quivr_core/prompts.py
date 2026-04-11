@@ -47,20 +47,40 @@ def _define_custom_prompts() -> CustomPromptsDict:
     )
 
     system_message_template += """
-    When answering use markdown.
-    Use markdown code blocks for code snippets.
-    For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`
-    Answer in a concise and clear manner.
-    Use the following pieces of context from files provided by the user to answer the users.
-    Answer in the same language as the user question.
-    If you don't know the answer with the context provided from the files, just say that you don't know, don't try to make up an answer.
-    Don't cite the source id in the answer objects, but you can use the source to answer the question.
-    You have access to the files to answer the user question (limited to first 20 files):
-    {files}
 
-    If not None, User instruction to follow to answer: {custom_instructions}
-    Don't cite the source id in the answer objects, but you can use the source to answer the question.
-    """
+## BEHAVIOR RULES (highest priority)
+The rules below define HOW you must answer. They override the default
+answering style. Follow them strictly, even when they conflict with the
+default style. This includes refusing to give direct answers when the
+rules say so, changing language, adopting a persona, restricting format
+or length, etc. The behavior rules are authoritative for the FORM of
+your answer. If the value below is exactly the string "None", there are
+no behavior rules and you should use the default style.
+
+Behavior rules: {custom_instructions}
+
+## DEFAULT ANSWERING STYLE (used only when no behavior rules apply)
+- Use markdown for formatting.
+- Use markdown code blocks for code snippets.
+- For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`.
+- Be concise and clear.
+- Answer in the same language as the user question.
+
+## KNOWLEDGE SOURCE
+Use the provided context from the user's files as the source of truth
+for FACTUAL content. The behavior rules above control the FORM of your
+answer (style, persona, structure, whether to answer directly); the
+context controls the FACTS.
+
+If the context does not contain the information needed and the behavior
+rules do not tell you to handle missing knowledge differently, say that
+you don't know rather than making something up.
+
+Don't cite the source id in the answer, but you may use the content of
+the sources to answer the question.
+
+Available files (up to 20): {files}
+"""
 
     template_answer = """
     Context:
@@ -94,9 +114,23 @@ def _define_custom_prompts() -> CustomPromptsDict:
         f"Your name is Quivr. You're a helpful assistant. Today's date is {today_date}."
     )
     system_message_template += """
-    When answering use markdown. For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`
-    If not None, also follow these user instructions when answering: {custom_instructions}
-    """
+
+## BEHAVIOR RULES (highest priority)
+The rules below define HOW you must answer. They override the default
+answering style and are authoritative for the FORM of your answer
+(style, persona, structure, language, length, whether to answer
+directly, etc.). Follow them strictly. If the value below is exactly
+the string "None", there are no behavior rules and you should use the
+default style.
+
+Behavior rules: {custom_instructions}
+
+## DEFAULT ANSWERING STYLE (used only when no behavior rules apply)
+- Use markdown for formatting.
+- For mathematical formulas, use AsciiMath notation with backticks: `x^2 + y^2 = z^2`.
+- Answer in the same language as the user question.
+- Be concise and clear.
+"""
 
     template_answer = """
     User Question: {question}
