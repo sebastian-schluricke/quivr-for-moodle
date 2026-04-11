@@ -54,7 +54,24 @@ class cited_answer(BaseModel):
 
     followup_questions: list[str] = Field(
         ...,
-        description="Generate up to 3 follow-up questions that could be asked based on the answer given or context provided.",
+        description=(
+            "Up to 3 short suggestions for what the USER might naturally "
+            "want to say or ask next — these are shown as clickable "
+            "buttons under the response, so phrase them from the user's "
+            "perspective (first person), not the assistant's. "
+            "Their style MUST follow the same BEHAVIOR RULES as the "
+            "`answer` field. Examples: "
+            "(a) Default (no behavior rules): related factual follow-up "
+            "questions about the topic. "
+            "(b) Socratic / no-direct-answers rules: things the student "
+            "might respond with — attempted answers ('Ich glaube es hat "
+            "mit X zu tun'), requests for hints ('Kannst du mir einen "
+            "Tipp geben?'), or requests for the solution ('Zeig mir "
+            "bitte den Lösungsweg'). NOT factual lookup questions. "
+            "(c) Persona rules: continuations consistent with the "
+            "persona's voice. "
+            "Match the language of the user question."
+        ),
     )
 
 
