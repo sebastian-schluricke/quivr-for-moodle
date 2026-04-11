@@ -49,6 +49,7 @@ class RAGService:
         prompt_service: PromptService | None = None,
         knowledge_service: KnowledgeService | None = None,
         vector_service: VectorService | None = None,
+        custom_instructions: str | None = None,
     ):
         # Services
         self.brain_service = brain_service
@@ -67,6 +68,9 @@ class RAGService:
             if self.brain and self.brain_service
             else None
         )
+
+        # Custom instructions from request override brain-level prompt
+        self.custom_instructions = custom_instructions
 
         self.retrieval_config = retrieval_config
 
@@ -101,6 +105,13 @@ class RAGService:
         else:
             retrieval_config = await self._build_retrieval_config()
 
+        # Single place for prompt resolution:
+        # custom_instructions (per-request) > brain prompt > existing config prompt
+        if self.custom_instructions:
+            retrieval_config.prompt = self.custom_instructions
+        elif self.prompt:
+            retrieval_config.prompt = self.prompt.content
+
         return retrieval_config
 
     async def _build_retrieval_config(self) -> RetrievalConfig:
@@ -118,7 +129,6 @@ class RAGService:
                 max_input_tokens=model.max_input,
                 max_output_tokens=model.max_output,
             ),
-            prompt=self.prompt.content if self.prompt else None,
         )
         return retrieval_config
 
@@ -262,9 +272,6 @@ class RAGService:
         )
 
         llm = self.get_llm(retrieval_config)
-
-        if self.prompt:
-            retrieval_config.prompt = self.prompt.content
 
         # Get model metadata
         model_metadata = await self.model_service.get_model(self.brain.name)

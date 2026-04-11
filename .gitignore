@@ -123,8 +123,10 @@ CLAUDE.md
 # Windows specific
 backend/requirements_windows.txt
 
-# Test files
+# Ad-hoc test scripts (but allow proper test files under tests/ directories)
 test_*.py
+!**/tests/test_*.py
+!backend/core/tests/**/test_*.py
 testing/
 
 # Images (except school logo)

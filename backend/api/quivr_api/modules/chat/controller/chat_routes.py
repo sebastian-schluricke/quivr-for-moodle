@@ -238,6 +238,7 @@ async def create_question_handler(
                 chat_service=chat_service,
                 knowledge_service=knowledge_service,
                 vector_service=vector_service,
+                custom_instructions=chat_question.custom_instructions,
             )
         else:
             await check_and_update_user_usage(
@@ -255,6 +256,7 @@ async def create_question_handler(
                 retrieval_config=retrieval_config,
                 model_service=model_service,
                 chat_service=chat_service,
+                custom_instructions=chat_question.custom_instructions,
             )  # type: ignore
         assert service is not None  # type: ignore
         maybe_send_telemetry("question_asked", {"streaming": True}, request)
@@ -340,6 +342,7 @@ async def create_stream_question_handler(
                 chat_service=chat_service,
                 knowledge_service=knowledge_service,
                 vector_service=vector_service,
+                custom_instructions=chat_question.custom_instructions,
             )
         else:
             await check_and_update_user_usage(
@@ -359,6 +362,7 @@ async def create_stream_question_handler(
                 retrieval_config=retrieval_config,
                 model_service=model_service,
                 chat_service=chat_service,
+                custom_instructions=chat_question.custom_instructions,
             )  # type: ignore
 
         background_tasks.add_task(
