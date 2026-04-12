@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class BrainRateLimiting(BaseSettings):
     model_config = SettingsConfigDict(validate_default=False)
-    max_brain_per_user: int = 5
+    max_brain_per_user: int = 20
 
 
 class SendEmailSettings(BaseSettings):
