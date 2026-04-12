@@ -18,13 +18,14 @@ def get_allowed_origins():
         if frontend_url.endswith("/"):
             origins.append(frontend_url.rstrip("/"))
 
-    # Moodle URL (required for Moodle plugin integration)
-    moodle_url = os.getenv("MOODLE_URL")
-    if moodle_url:
-        origins.append(moodle_url)
-        # Also add without trailing slash if present
-        if moodle_url.endswith("/"):
-            origins.append(moodle_url.rstrip("/"))
+    # Moodle URLs (comma-separated, for multiple Moodle instances)
+    moodle_urls = os.getenv("MOODLE_URLS", os.getenv("MOODLE_URL", ""))
+    for moodle_url in moodle_urls.split(","):
+        moodle_url = moodle_url.strip()
+        if moodle_url:
+            origins.append(moodle_url)
+            if moodle_url.endswith("/"):
+                origins.append(moodle_url.rstrip("/"))
 
     # Development: allow localhost variants
     if os.getenv("ENVIRONMENT", "development").lower() in ["development", "dev", "local"]:
