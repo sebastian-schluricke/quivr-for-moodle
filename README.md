@@ -20,11 +20,17 @@ Students often hesitate to ask questions in class - whether from fear of embarra
 - **Multiple Assistants per Course**: Different brains for various topics or learning objectives
 - **Popup Chat**: Floating chat button available on all course pages
 
-### Didactic Options
+### Custom Instructions per Activity
 
-- **Counter-Question Mode**: The assistant can respond with questions to encourage independent thinking
-- **Quiz Integration**: Embedding comprehension questions into the conversation
-- **Customizable Prompts**: Assistant behavior adaptable to pedagogical goals
+Different Moodle activities can use the same Brain with different behavior rules:
+
+- **Socratic Tutor**: Asks counter-questions instead of giving direct answers
+- **Quiz Mode**: Asks questions first, evaluates student answers
+- **Simple Language**: Explains at elementary school level with short sentences
+- **Math Tutor**: AsciiMath formatting, step-by-step solutions
+- **Custom**: Teachers write their own behavior instructions
+
+Instructions are sent per chat request and override the Brain's default prompt. The prompt template uses a three-section structure (BEHAVIOR RULES > DEFAULT STYLE > KNOWLEDGE SOURCE) to ensure instructions are actually followed, even when they conflict with the RAG context.
 
 ### Security
 
@@ -77,10 +83,11 @@ Students often hesitate to ask questions in class - whether from fear of embarra
 
 | Model | Description | Recommended |
 |-------|-------------|-------------|
-| `gpt-4o-mini` | Fast, cost-effective | ✓ Default |
-| `gpt-4o` | Powerful | For complex tasks |
-| `gpt-4-turbo` | GPT-4 with large context | - |
-| `gpt-3.5-turbo` | Fast, very affordable | Budget option |
+| `gpt-4.1` | Flagship model, excellent performance | ✓ Default |
+| `gpt-4.1-mini` | Faster and cheaper | Good balance |
+| `gpt-4.1-nano` | Fastest, most cost-efficient | Budget option |
+
+Models are configured in the `models` table in Supabase. The `MAX_BRAIN_PER_USER` env variable controls how many brains a user can create (default: 20).
 
 ## Prerequisites
 
@@ -227,6 +234,12 @@ export PG_DATABASE_ASYNC_URL="postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}
 export JWT_SECRET_KEY="${JWT_SECRET}"
 export SUPABASE_SERVICE_KEY="${SERVICE_ROLE_KEY}"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="${ANON_KEY}"
+
+# CORS: Moodle instances (comma-separated for multiple)
+export MOODLE_URLS="https://moodle.your-school.com,https://second-moodle.your-school.com"
+
+# Brain limit per user (default: 20)
+export MAX_BRAIN_PER_USER=20
 ```
 
 ### Generating Supabase Keys
@@ -284,7 +297,15 @@ Lists all available brains.
 Creates a new chat session.
 
 ### POST /chat/{chat_id}/question/stream
-Sends a question and receives a streaming response.
+Sends a question and receives a streaming response (SSE).
+
+Supports optional `custom_instructions` in the request body:
+```json
+{
+  "question": "What is a transformer?",
+  "custom_instructions": "Always respond with counter-questions to encourage independent thinking."
+}
+```
 
 ## Maintenance
 
@@ -370,7 +391,7 @@ Apache License 2.0 - see [LICENSE](LICENSE)
 
 ## Related Projects
 
-- [quivr-moodle-plugin](https://github.com/sebastian-schluricke/quivr-moodle-plugin) - Moodle Activity Plugin
+- [moodle-mod_quivrchat](https://github.com/sebastian-schluricke/moodle-mod_quivrchat) - Moodle Activity Plugin
 - [QuivrHQ/quivr](https://github.com/QuivrHQ/quivr) - Original Quivr Project
 
 ## Support
