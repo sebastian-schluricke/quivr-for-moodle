@@ -74,9 +74,10 @@ def authorize_moodle_get():
     # Get the backend URL for form submission
     backend_url = os.getenv("BACKEND_URL", "http://localhost:5050")
 
-    # Get Moodle URL from environment - this is the only Moodle instance allowed
-    moodle_url = os.getenv("MOODLE_URL")
-    if not moodle_url:
+    # Get Moodle URLs from environment (comma-separated for multiple instances).
+    moodle_urls_str = os.getenv("MOODLE_URLS", os.getenv("MOODLE_URL", ""))
+    moodle_urls = [u.strip() for u in moodle_urls_str.split(",") if u.strip()]
+    if not moodle_urls:
         return HTMLResponse(
             content="""
             <!DOCTYPE html>
@@ -101,6 +102,9 @@ def authorize_moodle_get():
             """,
             status_code=500
         )
+
+    # For backwards compatibility: use first URL as default.
+    moodle_url = moodle_urls[0]
 
     # Get frontend URL for postMessage origin check
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -194,10 +198,16 @@ def authorize_moodle_get():
     <body>
         <div class="form-container">
             <h2>Moodle Verbindung einrichten</h2>
-            <div class="info-box">
-                Verbindung zu: <strong>{moodle_url}</strong>
-            </div>
             <form id="moodleForm">
+                {"" if len(moodle_urls) <= 1 else '''
+                <div class="form-group">
+                    <label for="moodle_url">Moodle-Instanz:</label>
+                    <select id="moodle_url" name="moodle_url" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+                        ''' + "".join(f'<option value="{u}">{u}</option>' for u in moodle_urls) + '''
+                    </select>
+                </div>
+                '''}
+                {"" if len(moodle_urls) > 1 else f'<div class="info-box">Verbindung zu: <strong>{moodle_url}</strong></div>'}
                 <div class="form-group">
                     <label for="username">Benutzername:</label>
                     <input type="text" id="username" name="username" required autocomplete="username">
@@ -226,9 +236,11 @@ def authorize_moodle_get():
                 button.disabled = true;
                 button.textContent = 'Verbinde...';
 
+                const moodleSelect = document.getElementById('moodle_url');
                 const formData = {{
                     username: form.username.value,
-                    password: form.password.value
+                    password: form.password.value,
+                    moodle_url: moodleSelect ? moodleSelect.value : '{moodle_url}'
                 }};
 
                 const token = await getAuthToken();
@@ -323,6 +335,7 @@ class MoodleConnectInput(BaseModel):
     """Input model for Moodle connection (simplified - only credentials)."""
     username: str
     password: str
+    moodle_url: str | None = None
 
 
 @moodle_sync_router.post(
@@ -347,12 +360,21 @@ def connect_moodle(
     Returns:
         dict: Success message with connection details.
     """
-    # Get Moodle URL from environment - this is the only Moodle instance allowed
-    moodle_url = os.getenv("MOODLE_URL")
-    if not moodle_url:
+    # Get allowed Moodle URLs from environment.
+    moodle_urls_str = os.getenv("MOODLE_URLS", os.getenv("MOODLE_URL", ""))
+    allowed_urls = [u.strip() for u in moodle_urls_str.split(",") if u.strip()]
+    if not allowed_urls:
         raise HTTPException(
             status_code=500,
-            detail="Moodle URL not configured. Please set MOODLE_URL environment variable."
+            detail="Moodle URL not configured. Please set MOODLE_URLS environment variable."
+        )
+
+    # Use URL from request if provided (must be in whitelist), otherwise use first configured.
+    moodle_url = connection_input.moodle_url or allowed_urls[0]
+    if moodle_url.rstrip("/") not in [u.rstrip("/") for u in allowed_urls]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Moodle URL '{moodle_url}' is not in the list of allowed instances."
         )
 
     logger.debug(
