@@ -268,6 +268,15 @@ def authorize_moodle_get():
                     }}
 
                     successDiv.style.display = 'block';
+                    // Notify parent so it can refresh its connections list.
+                    if (window.opener) {{
+                        try {{
+                            window.opener.postMessage(
+                                {{ type: 'MOODLE_CONNECTION_SUCCESS' }},
+                                '{frontend_url}'
+                            );
+                        }} catch (e) {{ console.warn('postMessage failed:', e); }}
+                    }}
                     setTimeout(() => {{
                         window.close();
                     }}, 2000);

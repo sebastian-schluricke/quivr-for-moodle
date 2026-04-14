@@ -167,6 +167,12 @@ export const ConnectionSection = ({
           return;
         }
 
+        if (event.data.type === 'MOODLE_CONNECTION_SUCCESS') {
+          console.log('[Parent] Moodle connection success — refreshing connections');
+          void fetchUserSyncs();
+          return;
+        }
+
         if (event.data.type === 'AUTH_TOKEN_REQUEST') {
           console.log('[Parent] Received AUTH_TOKEN_REQUEST, getting token');
 
@@ -228,11 +234,13 @@ export const ConnectionSection = ({
       const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
       const popup = window.open(res.authorization_url, "moodle-connect", features);
 
-      // Clean up listener when popup closes
+      // Clean up listener when popup closes — and refresh as fallback
+      // in case the postMessage from the popup did not arrive.
       const checkPopupClosed = setInterval(() => {
         if (popup?.closed) {
           window.removeEventListener('message', messageHandler);
           clearInterval(checkPopupClosed);
+          void fetchUserSyncs();
         }
       }, 1000);
     }

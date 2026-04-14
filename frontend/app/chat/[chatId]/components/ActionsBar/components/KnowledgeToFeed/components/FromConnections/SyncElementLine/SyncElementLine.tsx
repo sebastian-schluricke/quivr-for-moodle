@@ -74,8 +74,13 @@ export const SyncElementLine = ({
   const content = (
     <div
       className={`${styles.sync_element_line_wrapper} ${
-        isCheckboxHovered || !isFolder ? styles.no_hover : ""
+        isCheckboxHovered || !isFolder || checked ? styles.no_hover : ""
       }`}
+      onClick={(event) => {
+        if (isFolder && checked) {
+          event.stopPropagation();
+        }
+      }}
     >
       <div className={`${styles.left} ${!showCheckbox ? styles.folder : ""}`}>
         {showCheckbox && (
