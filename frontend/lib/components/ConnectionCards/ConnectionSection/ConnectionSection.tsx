@@ -153,74 +153,63 @@ export const ConnectionSection = ({
 
     const res = await callback(defaultName);
     if (res.authorization_url) {
+      // Helper: read Supabase auth token from localStorage / cookies.
+      const getAuthTokenFromStorage = (): string => {
+        try {
+          const supabaseSession = localStorage.getItem('supabase-auth-token');
+          if (supabaseSession) {
+            const session = JSON.parse(supabaseSession);
+            const tk: string = session?.access_token || '';
+            if (tk) {
+              return tk;
+            }
+          }
+          const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('supabase-auth-token='));
+          if (cookieValue) {
+            const decoded = decodeURIComponent(cookieValue.split('=')[1]);
+            const tokenArray: string[] = JSON.parse(decoded);
+            return tokenArray[0] ?? '';
+          }
+        } catch (e) {
+          console.error('[Parent] Error reading auth token:', e);
+        }
+
+        return '';
+      };
+
+      // Helper: send a token back to the popup that asked for it.
+      const replyWithToken = (event: MessageEvent, token: string) => {
+        event.source?.postMessage(
+          { type: 'AUTH_TOKEN_RESPONSE', token },
+          event.origin as any
+        );
+      };
+
+      const isAllowedOrigin = (origin: string): boolean => {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
+        if (origin.startsWith('http://localhost:')) {
+          return true;
+        }
+
+        return !!backendUrl && origin.startsWith(backendUrl.replace(/\/$/, ''));
+      };
+
       // Set up message listener for auth token requests from popup
       const messageHandler = (event: MessageEvent) => {
-        console.log('[Parent] Received message:', event.origin, event.data);
-
-        // Accept messages from localhost or the backend URL
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
-        const isLocalhost = event.origin.startsWith('http://localhost:');
-        const isBackend = backendUrl && event.origin.startsWith(backendUrl.replace(/\/$/, ''));
-
-        if (!isLocalhost && !isBackend) {
-          console.log('[Parent] Rejected message from unknown origin:', event.origin);
+        if (!isAllowedOrigin(event.origin)) {
           return;
         }
 
         if (event.data.type === 'MOODLE_CONNECTION_SUCCESS') {
-          console.log('[Parent] Moodle connection success — refreshing connections');
           void fetchUserSyncs();
+
           return;
         }
 
         if (event.data.type === 'AUTH_TOKEN_REQUEST') {
-          console.log('[Parent] Received AUTH_TOKEN_REQUEST, getting token');
-
-          let token = '';
-
-          try {
-            // Try localStorage first
-            const supabaseSession = localStorage.getItem('supabase-auth-token');
-            console.log('[Parent] localStorage key exists:', !!supabaseSession);
-
-            if (supabaseSession) {
-              const session = JSON.parse(supabaseSession);
-              token = session?.access_token || '';
-            }
-
-            // If not in localStorage, try cookies
-            if (!token) {
-              console.log('[Parent] Trying to get token from cookies');
-              const cookieValue = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('supabase-auth-token='));
-
-              if (cookieValue) {
-                const encodedValue = cookieValue.split('=')[1];
-                const decodedValue = decodeURIComponent(encodedValue);
-                console.log('[Parent] Found cookie, decoded value:', decodedValue.substring(0, 50));
-
-                // Cookie format: ["access_token", "refresh_token", null, null, null]
-                const tokenArray = JSON.parse(decodedValue);
-                token = tokenArray[0] || '';
-              }
-            }
-
-            console.log('[Parent] Sending token back to popup, token length:', token.length);
-
-            // Send token back to popup
-            event.source?.postMessage(
-              { type: 'AUTH_TOKEN_RESPONSE', token },
-              event.origin as any
-            );
-          } catch (e) {
-            console.error('[Parent] Error getting auth token:', e);
-            // Send empty token on error
-            event.source?.postMessage(
-              { type: 'AUTH_TOKEN_RESPONSE', token: '' },
-              event.origin as any
-            );
-          }
+          replyWithToken(event, getAuthTokenFromStorage());
         }
       };
 
