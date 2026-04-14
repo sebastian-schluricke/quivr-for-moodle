@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { useUserApi } from "@/lib/api/user/useUserApi";
@@ -67,7 +66,7 @@ export const HelpWindow = (): JSX.Element => {
       ref={helpWindowRef}
     >
       <div className={styles.header}>
-        <span className={styles.title}>🧠 What is Quivr ?</span>
+        <span className={styles.title}>🧠 Was ist Quivr?</span>
         <Icon
           name="close"
           size="normal"
@@ -78,107 +77,76 @@ export const HelpWindow = (): JSX.Element => {
       </div>
       <div className={styles.content}>
         <div className={styles.section}>
-          <span className={styles.title}>🧱 Build your second brains</span>
+          <span className={styles.title}>
+            🧱 Ein KI-Assistent für deinen Unterricht
+          </span>
           <span className={styles.section_content}>
-            A <strong>Brain</strong> in Quivr is an advanced knowledge system
-            designed to integrate and leverage information from various sources.
+            Ein <strong>Brain</strong> ist eine KI-gestützte Wissensbasis, die
+            aus deinen Moodle-Kursmaterialien lernt und Schüler:innen fachlich
+            fundierte Antworten gibt.
             <ul>
               <li>
-                <strong>📁 Knowledge Integration</strong>
-                <br /> Connect to and pull data from various platforms like{" "}
-                <span className={styles.connection}>
-                  <strong>Google Drive</strong>{" "}
-                  <Image
-                    src="https://quivr-cms.s3.eu-west-3.amazonaws.com/gdrive_8316d080fd.png"
-                    alt="Google Drive"
-                    width={16}
-                    height={16}
-                  />
-                </span>
-                ,
-                <span className={styles.connection}>
-                  <strong>SharePoint</strong>{" "}
-                  <Image
-                    src="https://quivr-cms.s3.eu-west-3.amazonaws.com/sharepoint_8c41cfdb09.png"
-                    alt="SharePoint"
-                    width={16}
-                    height={16}
-                  />
-                </span>
-                , and{""}
-                <span className={styles.connection}>
-                  <strong className={styles.pre}> Dropbox</strong>{" "}
-                  <Image
-                    src="https://quivr-cms.s3.eu-west-3.amazonaws.com/dropbox_dce4f3d753.png"
-                    alt="Dropbox"
-                    width={16}
-                    height={16}
-                  />
-                </span>
-                . You can also incorporate data from <strong>URLs</strong> and{" "}
-                <strong>files</strong>.
+                <strong>📚 Moodle-Anbindung</strong>
+                <br /> Verbinde dein Brain direkt mit einem Moodle-Kurs. Alle
+                Abschnitte, PDFs, Skripte und Texte werden automatisch
+                eingelesen und indexiert — ohne manuellen Upload.
               </li>
               <li>
-                <strong>🤖 AI Models</strong>
-                <br /> Utilize powerful models such as{" "}
-                <strong>
-                  <em>GPT</em>
-                </strong>{" "}
-                and{" "}
-                <strong>
-                  <em>Mistral</em>
-                </strong>{" "}
-                to process and understand the integrated knowledge.
+                <strong>🎯 Didaktische Steuerung</strong>
+                <br /> Lege pro Moodle-Aktivität fest, wie die KI antworten
+                soll: sokratisch mit Rückfragen, als Quizmaster, in einfacher
+                Sprache oder als Mathe-Tutor. Fertige Vorlagen erleichtern den
+                Einstieg.
               </li>
               <li>
-                <strong>🔧 Customization</strong>
-                <br /> Tailor the behavior of your Brain with{" "}
-                <em>custom prompts</em> and <em>settings</em>, such as{" "}
-                <strong>max tokens</strong>, to better suit your needs.
+                <strong>🤖 Aktuelle KI-Modelle</strong>
+                <br /> Im Hintergrund arbeiten leistungsfähige KI-Modelle, die
+                deine Kursinhalte verstehen und darauf basierend antworten.
+                Die Schüler:innen sehen das nicht — sie sehen nur den Chat
+                ihrer Aktivität.
               </li>
             </ul>
             <p>
-              You can also <strong>share</strong> your brains with other Quivr
-              users, allowing them to access and benefit from your knowledge
-              systems. 🤝
+              Ein Brain kann für mehrere Aktivitäten genutzt werden. So kannst
+              du mit einer einzigen Wissensbasis verschiedene Lernszenarien
+              gestalten. 🤝
             </p>
           </span>
         </div>
         <div className={styles.section}>
-          <span className={styles.title}>🤖 Talk to AI Models</span>
+          <span className={styles.title}>
+            🗂️ So richtest du ein Brain ein
+          </span>
           <span className={styles.section_content}>
             <p>
-              Quivr allows you to <strong>interact directly</strong> with AI
-              models such as{" "}
-              <strong>
-                <em>GPT-4</em>
-              </strong>{" "}
-              and{" "}
-              <strong>
-                <em>Mistral</em>
-              </strong>
-              . Simply start a conversation with the AI to get answers and
-              support based on a broad range of data and knowledge. 🤖✨
+              1. <strong>"Create Brain"</strong> klicken und einen Namen
+              vergeben (z.B. "Fachschule ET — Betriebswirtschaftslehre").
+              <br />
+              2. Als Quelle <strong>Moodle</strong> wählen und dich einmalig
+              mit deinen Moodle-Zugangsdaten anmelden.
+              <br />
+              3. Den gewünschten Kurs auswählen — die Materialien werden
+              automatisch importiert.
+              <br />
+              4. In Moodle die Aktivität <strong>"Quivr Chat"</strong>{" "}
+              anlegen, das Brain auswählen und optional eigene Instruktionen
+              setzen.
             </p>
           </span>
         </div>
         <div className={styles.section}>
-          <div className={styles.title}>🎯 Select assistant</div>
+          <div className={styles.title}>💬 Direkt mit dem Brain chatten</div>
           <span className={styles.section_content}>
             <p>
-              Press
-              <strong> @</strong> to choose the AI model or the Brain you want
-              to interact with.
+              Hier in Quivr kannst du jederzeit selbst mit deinen Brains
+              sprechen — z.B. um zu prüfen, ob die KI die Kursmaterialien
+              korrekt verstanden hat, bevor deine Schüler:innen damit
+              arbeiten.
+            </p>
+            <p>
+              Drücke <strong>@</strong>, um zwischen deinen Brains zu wechseln.
             </p>
           </span>
-          <div className={styles.image}>
-            <Image
-              src="https://quivr-cms.s3.eu-west-3.amazonaws.com/Screen_82ac3783aa.png"
-              width={500}
-              height={100}
-              alt="Quivr"
-            />
-          </div>
         </div>
       </div>
     </div>
