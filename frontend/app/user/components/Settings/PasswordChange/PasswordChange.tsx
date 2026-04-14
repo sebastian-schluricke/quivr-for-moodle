@@ -1,6 +1,8 @@
 import { useState } from "react";
 
+import { FieldHeader } from "@/lib/components/ui/FieldHeader/FieldHeader";
 import { QuivrButton } from "@/lib/components/ui/QuivrButton/QuivrButton";
+import { TextInput } from "@/lib/components/ui/TextInput/TextInput";
 import { useSupabase } from "@/lib/context/SupabaseProvider";
 
 import styles from "./PasswordChange.module.scss";
@@ -74,33 +76,24 @@ export const PasswordChange = ({
         highlight ? styles.highlight : ""
       }`}
     >
-      <div className={styles.field_group}>
-        <label htmlFor="new-password" className={styles.label}>
-          Neues Passwort
-        </label>
-        <input
-          id="new-password"
-          type="password"
-          autoComplete="new-password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          className={styles.input}
-          placeholder="mindestens 8 Zeichen"
+      <div>
+        <FieldHeader iconName="key" label="Neues Passwort" />
+        <TextInput
+          label="mindestens 8 Zeichen"
+          inputValue={newPassword}
+          setInputValue={setNewPassword}
+          crypted={true}
         />
       </div>
 
-      <div className={styles.field_group}>
-        <label htmlFor="confirm-password" className={styles.label}>
-          Passwort bestätigen
-        </label>
-        <input
-          id="confirm-password"
-          type="password"
-          autoComplete="new-password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className={styles.input}
-          placeholder="erneut eingeben"
+      <div>
+        <FieldHeader iconName="key" label="Passwort bestätigen" />
+        <TextInput
+          label="erneut eingeben"
+          inputValue={confirmPassword}
+          setInputValue={setConfirmPassword}
+          crypted={true}
+          onSubmit={() => void handleSubmit()}
         />
       </div>
 

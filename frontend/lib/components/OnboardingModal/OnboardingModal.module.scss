@@ -18,4 +18,10 @@
     display: flex;
     justify-content: flex-end;
   }
+
+  .password_error {
+    margin-top: Spacings.$spacing02;
+    color: var(--dangerous, #c62828);
+    font-size: 0.85rem;
+  }
 }

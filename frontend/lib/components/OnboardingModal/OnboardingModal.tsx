@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 
 import { useUserApi } from "@/lib/api/user/useUserApi";
 import { CompanySize, UsagePurpose } from "@/lib/api/user/user";
 import { Modal } from "@/lib/components/ui/Modal/Modal";
 import { useOnboardingContext } from "@/lib/context/OnboardingProvider/hooks/useOnboardingContext";
+import { useSupabase } from "@/lib/context/SupabaseProvider";
 
 import styles from "./OnboardingModal.module.scss";
 
@@ -19,6 +21,11 @@ export const OnboardingModal = (): JSX.Element => {
     setIsOnboardingModalOpened,
     isBrainCreated,
   } = useOnboardingContext();
+  const { supabase } = useSupabase();
+
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const methods = useForm<OnboardingProps>({
     defaultValues: {
@@ -46,6 +53,28 @@ export const OnboardingModal = (): JSX.Element => {
   );
 
   const submitForm = async () => {
+    setPasswordError(null);
+
+    // Validate password if user filled at least one of the password fields.
+    if (password || passwordConfirm) {
+      if (password.length < 8) {
+        setPasswordError("Das Passwort muss mindestens 8 Zeichen lang sein.");
+
+        return;
+      }
+      if (password !== passwordConfirm) {
+        setPasswordError("Die Passwörter stimmen nicht überein.");
+
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) {
+        setPasswordError(error.message);
+
+        return;
+      }
+    }
+
     await updateUserIdentity({
       username: methods.getValues("username"),
       company: methods.getValues("companyName"),
@@ -70,6 +99,35 @@ export const OnboardingModal = (): JSX.Element => {
       >
         <div className={styles.modal_content_wrapper}>
           <div className={styles.form_wrapper}>
+            <div>
+              <FieldHeader
+                iconName="key"
+                label="Neues Passwort"
+                mandatory={true}
+              />
+              <TextInput
+                label="mindestens 8 Zeichen"
+                inputValue={password}
+                setInputValue={setPassword}
+                crypted={true}
+              />
+            </div>
+            <div>
+              <FieldHeader
+                iconName="key"
+                label="Passwort bestätigen"
+                mandatory={true}
+              />
+              <TextInput
+                label="erneut eingeben"
+                inputValue={passwordConfirm}
+                setInputValue={setPasswordConfirm}
+                crypted={true}
+              />
+              {passwordError && (
+                <div className={styles.password_error}>{passwordError}</div>
+              )}
+            </div>
             <div>
               <FieldHeader iconName="user" label="Username" mandatory={true} />
               <Controller
@@ -146,8 +204,8 @@ export const OnboardingModal = (): JSX.Element => {
               iconName="chevronRight"
               label="Submit"
               color="primary"
-              onClick={() => submitForm()}
-              disabled={!username}
+              onClick={() => void submitForm()}
+              disabled={!username || !password || !passwordConfirm}
             />
           </div>
         </div>
