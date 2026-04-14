@@ -119,8 +119,9 @@ export const HelpWindow = (): JSX.Element => {
           </span>
           <span className={styles.section_content}>
             <p>
-              1. <strong>"Create Brain"</strong> klicken und einen Namen
-              vergeben (z.B. "Fachschule ET — Betriebswirtschaftslehre").
+              1. <strong>&bdquo;Create Brain&ldquo;</strong> klicken und einen
+              Namen vergeben (z.B. &bdquo;Fachschule ET —
+              Betriebswirtschaftslehre&ldquo;).
               <br />
               2. Als Quelle <strong>Moodle</strong> wählen und dich einmalig
               mit deinen Moodle-Zugangsdaten anmelden.
@@ -128,9 +129,9 @@ export const HelpWindow = (): JSX.Element => {
               3. Den gewünschten Kurs auswählen — die Materialien werden
               automatisch importiert.
               <br />
-              4. In Moodle die Aktivität <strong>"Quivr Chat"</strong>{" "}
-              anlegen, das Brain auswählen und optional eigene Instruktionen
-              setzen.
+              4. In Moodle die Aktivität{" "}
+              <strong>&bdquo;Quivr Chat&ldquo;</strong> anlegen, das Brain
+              auswählen und optional eigene Instruktionen setzen.
             </p>
           </span>
         </div>
