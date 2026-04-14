@@ -1,7 +1,10 @@
+import { useEffect, useRef } from "react";
+
 import { Icon } from "@/lib/components/ui/Icon/Icon";
 
 import { ApiKeyConfig } from "./ApiKeyConfig";
 import { InfoSection } from "./InfoSection/InfoSection";
+import { PasswordChange } from "./PasswordChange";
 import styles from "./Settings.module.scss";
 
 import { StripePricingOrManageButton } from "../StripePricingOrManageButton";
@@ -12,18 +15,42 @@ type InfoDisplayerProps = {
   email: string;
   username: string;
   remainingCredits: number;
+  passwordSetupRequested?: boolean;
 };
 
 export const Settings = ({
   email,
   username,
   remainingCredits,
+  passwordSetupRequested = false,
 }: InfoDisplayerProps): JSX.Element => {
+  const passwordSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (passwordSetupRequested && passwordSectionRef.current) {
+      passwordSectionRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [passwordSetupRequested]);
+
   return (
     <div className={styles.settings_wrapper}>
       <span className={styles.title}>
         General settings and main information
       </span>
+      {passwordSetupRequested && (
+        <div className={styles.setup_banner}>
+          <Icon name="key" color="primary" size="normal" />
+          <span>
+            <strong>Bitte setze jetzt dein Passwort</strong>
+            <br />
+            Damit du dich beim nächsten Mal direkt anmelden kannst, vergib bitte
+            ein eigenes Passwort.
+          </span>
+        </div>
+      )}
       <div className={styles.infos_wrapper}>
         <InfoSection iconName="email" title="Email">
           <span className={styles.bold}>{email}</span>
@@ -39,6 +66,11 @@ export const Settings = ({
             </div>
           </InfoSection>
         )}
+        <InfoSection iconName="key" title="Passwort">
+          <div ref={passwordSectionRef}>
+            <PasswordChange highlight={passwordSetupRequested} />
+          </div>
+        </InfoSection>
         <InfoSection iconName="key" title="Quivr API Key">
           <div className={styles.text_and_button}>
             <span className={styles.text}>

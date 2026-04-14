@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -36,6 +37,8 @@ const UserPage = (): JSX.Element => {
   } = useLogoutModal();
   const [selectedTab, setSelectedTab] = useState("General");
   const { remainingCredits, setRemainingCredits } = useUserSettingsContext();
+  const searchParams = useSearchParams();
+  const passwordSetupRequested = searchParams?.get("setpw") === "1";
 
   useEffect(() => {
     void (async () => {
@@ -96,6 +99,7 @@ const UserPage = (): JSX.Element => {
               email={userData.email}
               username={userIdentityData?.username ?? ""}
               remainingCredits={remainingCredits ?? 0}
+              passwordSetupRequested={passwordSetupRequested}
             />
           )}
           {selectedTab === "Connections" && <Connections />}
