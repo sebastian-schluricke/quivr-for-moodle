@@ -1348,6 +1348,71 @@ class MoodleSync(BaseSync):
 
         return files
 
+    def _get_files_for_section_id(
+        self,
+        moodle_url: str,
+        wstoken: str,
+        target_section_id: int,
+        user_id,
+        include_hidden_sections: bool,
+    ) -> List[SyncFile]:
+        """Return all files that belong to a specific Moodle section ID.
+
+        Enumerates enrolled courses until the section is found, then delegates to
+        the normal per-course logic so file IDs stay consistent.
+        """
+        courses = self._call_moodle_api(
+            moodle_url, wstoken, "core_enrol_get_users_courses", {"userid": user_id}
+        )
+        for course in courses:
+            course_id = str(course.get("id"))
+            try:
+                contents = self._call_moodle_api(
+                    moodle_url, wstoken, "core_course_get_contents",
+                    {
+                        "courseid": int(course_id),
+                        "options": [{"name": "sectionid", "value": target_section_id}],
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"Skipping course {course_id} while looking for section {target_section_id}: {e}")
+                continue
+
+            section_found = next(
+                (s for s in contents if s.get("id") == target_section_id), None
+            )
+            if section_found is None:
+                continue
+
+            section_name = section_found.get("name", "Unnamed Section")
+            section_number = section_found.get("section", 0)
+            section_visible = section_found.get("visible", 1)
+            if not section_visible and not include_hidden_sections:
+                logger.debug(f"Skipping hidden section {target_section_id}")
+                return []
+
+            files: List[SyncFile] = [
+                SyncFile(
+                    name=remove_special_characters(f"Section {section_number}: {section_name}.md"),
+                    id=f"{course_id}:section:{target_section_id}",
+                    is_folder=False,
+                    last_modified=datetime.now().strftime(self.datetime_format),
+                    mime_type="text/markdown",
+                    web_view_link=f"{moodle_url}/course/view.php?id={course_id}#section-{section_number}",
+                    size=0,
+                )
+            ]
+            for module in section_found.get("modules", []):
+                files.extend(self._extract_files_from_module(module, section_name, course_id))
+
+            logger.info(
+                f"Found section {target_section_id} in course {course_id}: {len(files)} files"
+            )
+            return files
+
+        logger.warning(f"Section {target_section_id} not found in any enrolled course")
+        return []
+
     def get_files(
         self, credentials: Dict, folder_id: str | None = None, recursive: bool = False
     ) -> List[SyncFile]:
@@ -1383,15 +1448,27 @@ class MoodleSync(BaseSync):
                 ))
             return course_folders
 
+        include_hidden_sections = credentials.get("include_hidden_sections", False)
+
+        # folder_id can be 'section_XXXXX' when the user selected a course section
+        # rather than the whole course. Find the parent course by scanning enrolled courses.
+        if folder_id.startswith("section_"):
+            try:
+                target_section_id = int(folder_id[len("section_"):])
+            except ValueError:
+                logger.warning(f"Invalid Moodle section folder_id: {folder_id}")
+                return []
+            return self._get_files_for_section_id(
+                moodle_url, wstoken, target_section_id,
+                credentials.get("user_id"), include_hidden_sections
+            )
+
         # Get course contents
         course_id = folder_id
         contents = self._call_moodle_api(
             moodle_url, wstoken, "core_course_get_contents",
             {"courseid": int(course_id)}
         )
-
-        # Check if hidden sections should be included (default: False)
-        include_hidden_sections = credentials.get("include_hidden_sections", False)
 
         files = []
         for section in contents:
