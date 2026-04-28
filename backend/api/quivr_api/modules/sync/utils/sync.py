@@ -1369,10 +1369,7 @@ class MoodleSync(BaseSync):
             try:
                 contents = self._call_moodle_api(
                     moodle_url, wstoken, "core_course_get_contents",
-                    {
-                        "courseid": int(course_id),
-                        "options": [{"name": "sectionid", "value": target_section_id}],
-                    },
+                    {"courseid": int(course_id)},
                 )
             except Exception as e:
                 logger.debug(f"Skipping course {course_id} while looking for section {target_section_id}: {e}")
